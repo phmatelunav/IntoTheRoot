@@ -1,0 +1,1617 @@
+<title>Into the Root</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap">
+<style>
+/* Layout: a 16:9 cinema stage (WebGL + HUD canvas + caption overlay), transport bar, then production notes.
+   Deliberately single dark theme: projection-room look. */
+:root{
+  --bg:#06080a; --panel:#0d1115; --ink:#e9ece6; --muted:#8d988f; --rule:#1f272c;
+  --accent:#7fd3ff; --warm:#ffb15a; --lignin:#e2584a;
+  --display:'Instrument Serif',Georgia,'Times New Roman',serif;
+  --sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.55}
+.wrap{max-width:1280px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 72px;display:grid;gap:22px}
+.head{display:grid;gap:10px}
+.eyebrow{margin:0;font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+h1{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(2.6rem,6vw,4.4rem);line-height:.95;letter-spacing:-.01em;text-wrap:balance}
+h1 i{color:var(--accent)}
+.lede{margin:0;max-width:68ch;color:#c9d0ca;text-wrap:pretty}
+.stage{position:relative;width:100%;max-width:100%;aspect-ratio:16/9;background:#000;border:1px solid var(--rule);border-radius:12px;overflow:hidden}
+.stage:fullscreen{border:0;border-radius:0;width:100vw;height:100vh;aspect-ratio:auto}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.cap{position:absolute;left:0;right:0;bottom:0;padding:56px clamp(14px,2.4vw,30px) clamp(12px,2vw,24px);background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.74));pointer-events:none;transition:opacity .5s ease}
+.cap .shot{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.cap p{margin:6px 0 0;font-size:clamp(13px,1.55vw,19px);line-height:1.42;max-width:62ch;text-wrap:pretty}
+.cap .fade{opacity:0}
+.cap .shot,.cap p{transition:opacity .35s ease}
+.titlecard{position:absolute;inset:0;display:grid;place-content:center;text-align:center;gap:10px;pointer-events:none;transition:opacity .8s ease}
+.titlecard h2{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(40px,7.5vw,104px);line-height:1;letter-spacing:-.01em;text-shadow:0 4px 40px rgba(0,0,0,.6)}
+.titlecard p{margin:0;font-family:var(--mono);font-size:clamp(11px,1.2vw,14px);letter-spacing:.14em;text-transform:uppercase;color:#b9c4bd}
+.loading[hidden]{display:none}
+.loading{position:absolute;inset:0;display:grid;place-content:center;font-family:var(--mono);font-size:13px;color:var(--muted);background:#000;text-align:center;padding:16px}
+.controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.btn{appearance:none;border:1px solid var(--rule);background:var(--panel);color:var(--ink);border-radius:999px;height:40px;min-width:40px;padding:0 14px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:var(--mono);font-size:13px;cursor:pointer}
+.btn:hover{border-color:#47535a}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink);min-width:100px}
+.btn svg{width:14px;height:14px;fill:currentColor}
+.btn:focus-visible,.shotbtn:focus-visible,#scrub:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#scrub{flex:1 1 280px;min-width:0;accent-color:var(--accent)}
+.time{font-family:var(--mono);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;min-width:110px;text-align:right}
+.shots{display:flex;gap:8px;flex-wrap:wrap}
+.wet{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;font-family:var(--mono);font-size:13px;color:var(--muted)}
+.wet label{color:var(--ink)}
+.wet input{flex:1 1 220px;min-width:0;accent-color:#5fb6e6}
+.wet output{min-width:0;color:#cfe9f7;font-variant-numeric:tabular-nums}
+#psi:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.shotbtn{appearance:none;background:none;border:1px solid var(--rule);color:var(--muted);border-radius:8px;padding:8px 12px;font-family:var(--mono);font-size:12px;cursor:pointer;text-align:left;display:grid;gap:2px}
+.shotbtn b{color:var(--ink);font-weight:500}
+.shotbtn.on{border-color:var(--accent);color:#cfe9f7}
+.notes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:26px 30px;margin-top:10px}
+@media (max-width:860px){.notes{grid-template-columns:1fr}}
+.note{border-top:1px solid var(--rule);padding-top:14px;display:grid;gap:8px;align-content:start;min-width:0}
+.note h3{margin:0;font-family:var(--display);font-weight:400;font-size:1.6rem;line-height:1.1}
+.note ul{margin:0;padding-left:1.1em;display:grid;gap:6px;color:#c9d0ca;font-size:15px}
+.note b{color:var(--ink);font-weight:500}
+.foot{margin:0;font-family:var(--mono);font-size:12px;color:var(--muted)}
+.paper{display:grid;gap:18px;margin-top:18px;max-width:78ch}
+.paper h2,.refs h2{margin:0;font-family:var(--display);font-weight:400;font-size:2.2rem;line-height:1.05}
+.paper .abs{margin:0;color:#c9d0ca;font-size:15px}
+.paper section{display:grid;gap:6px}
+.paper h3{margin:0;font-family:var(--mono);font-weight:500;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.paper p{margin:0;font-size:15.5px;line-height:1.65;color:#d7ddd8;text-wrap:pretty}
+.paper .eq{font-family:var(--mono);font-size:13.5px;color:var(--ink);background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:10px 14px;overflow-x:auto;white-space:nowrap}
+sup.cite{font-family:var(--mono);font-size:.68em;line-height:0;margin-left:1px}
+sup.cite a{color:var(--accent);text-decoration:none}
+sup.cite a:hover,sup.cite a:focus-visible{text-decoration:underline}
+.refs{display:grid;gap:12px;margin-top:14px;border-top:1px solid var(--rule);padding-top:18px}
+.refs ol{margin:0;padding-left:2.2em;display:grid;gap:7px;font-size:14px;line-height:1.5;color:#aeb8b1;max-width:100ch}
+.refs li{padding-left:4px}
+.refs li:target{color:var(--ink);background:rgba(127,211,255,.08);border-radius:4px}
+.refs i{color:#d7ddd8}
+@media (max-width:640px){.cap{padding-top:28px}.cap p{font-size:12.5px}.time{min-width:0}}
+</style>
+
+<main class="wrap">
+  <header class="head">
+    <p class="eyebrow">Proof of concept · one continuous shot · 74 s</p>
+    <h1>Into the <i>root</i></h1>
+    <p class="lede">From a flowering cherry tree and its whole root system down to single water molecules, without a cut. The 3D scene is real geometry in centimetres; the section at the end is a tissue grown from a weighted Voronoi diagram, so its cells pack the way plant cells do.</p>
+  </header>
+
+  <section aria-label="Animation">
+    <div class="stage" id="stage">
+      <canvas id="gl" aria-hidden="true"></canvas>
+      <canvas id="hud" role="img" aria-label="Animated fly-through from a soil core into a root cross-section"></canvas>
+      <div class="titlecard" id="titlecard"><h2>Into the root</h2><p>From soil core to cell wall</p></div>
+      <div class="cap" id="cap"><div class="shot" id="capShot">Shot 1 · X-ray CT</div><p id="capText">A seedling growing in a soil core.</p></div>
+      <div class="loading" id="loading">Growing roots and building the tissue section…</div>
+    </div>
+  </section>
+
+  <div class="controls">
+    <button class="btn primary" id="play" type="button"><svg viewBox="0 0 16 16" id="playIcon"><rect x="3" y="2" width="3.5" height="12" rx="1"/><rect x="9.5" y="2" width="3.5" height="12" rx="1"/></svg><span id="playTxt">Pause</span></button>
+    <button class="btn" id="restart" type="button" aria-label="Restart"><svg viewBox="0 0 16 16"><path d="M8 2a6 6 0 1 0 6 6h-2a4 4 0 1 1-4-4v3l4-4-4-4z"/></svg></button>
+    <input type="range" id="scrub" min="0" max="74" step="0.01" value="0" aria-label="Timeline">
+    <span class="time" id="time">0:00.0 / 1:14</span>
+    <button class="btn" id="fxb" type="button" aria-pressed="false">Lens FX off</button>
+    <button class="btn" id="fs" type="button">Full screen</button>
+  </div>
+  <div class="wet">
+    <label for="psi">Soil water potential</label>
+    <input type="range" id="psi" min="-3" max="0.176" step="0.005" value="-1.48">
+    <output id="psiOut" for="psi">−0.033 MPa · field capacity</output>
+    <button class="btn" id="psiReset" type="button">Reset</button>
+    <button class="btn" id="stops" type="button" aria-pressed="false">Stop at each shot: off</button>
+  </div>
+  <div class="shots" id="shots"></div>
+
+  <section class="notes" aria-label="Production notes">
+    <div class="note">
+      <h3>What is measured</h3>
+      <ul>
+        <li><b>1 scene unit = 1 cm.</b> The scale bar is computed from the camera every frame.</li>
+        <li><b>Lateral root</b> 0.5 mm wide; <b>root hairs</b> 10 µm wide, 0.2–0.8 mm long<sup class="cite"><a href="#r2">2</a></sup>.</li>
+        <li><b>Soil grains</b> 0.1–0.6 mm: fine to medium sand, the size class roots thread between<sup class="cite"><a href="#r3">3</a></sup>.</li>
+        <li><b>Root growth</b> is compressed (1 s ≈ 1 day) and labelled on screen; the zoom runs in real time.</li>
+        <li><b>Water flow</b> follows a line sink: r² = r₀² − 2kt, so speed rises as 1/r near the root<sup class="cite"><a href="#r4">4</a></sup>. 24,000 parcels, computed on the GPU.</li>
+        <li><b>Capillary bridges</b> join grains that nearly touch, and grains that touch the root.</li>
+        <li><b>Drought slider:</b> the largest water-filled pore follows Young–Laplace, r = 2γ/|ψ|; conductivity follows van Genuchten–Mualem for a loam (α = 0.036 cm⁻¹, n = 1.56). <sup class="cite"><a href="#r3">3</a>,<a href="#r5">5</a>,<a href="#r6">6</a>,<a href="#r7">7</a></sup> Particle speed shows K<sup>¼</sup> so a millionfold drop stays visible.</li>
+        <li><b>Mycorrhizal hyphae</b> are 5 µm wide and branch along the soil–glass interface, as in rhizobox imaging; spores are 90–180 µm<sup class="cite"><a href="#r14">14</a></sup>.</li>
+      </ul>
+    </div>
+    <div class="note">
+      <h3>What is accurate</h3>
+      <ul>
+        <li>Shot 1 is a Yoshino cherry (<i>Prunus × yedoensis</i>): flowers open before the leaves, five notched petals, umbels of 2–5 on long pedicels<sup class="cite"><a href="#r29">29</a></sup>. About 25,000 flowers and tens of thousands of roots in four branching orders.</li>
+        <li>The section is a <b>tetrarch dicot root</b>: exarch xylem with protoxylem at the four poles, wide metaxylem in the centre, phloem between the arms<sup class="cite"><a href="#r8">8</a></sup>.</li>
+        <li>Casparian strips sit mid-way along the radial walls of the endodermis. Cortex cells hold starch and leave air spaces at their corners<sup class="cite"><a href="#r9">9</a>,<a href="#r10">10</a></sup>.</li>
+        <li>Colours follow a safranin / fast-green stain: lignin red, cellulose green<sup class="cite"><a href="#r11">11</a></sup>.</li>
+        <li>Shot 6 builds the root as about 5,000 irregular 3D cells in seven layers, each with a visible wall (drawn about 3× real thickness so it reads on screen). Arbuscules form only in the inner cortex next to the endodermis; host cells there lose their starch and their nucleus moves to the centre and enlarges.</li>
+        <li>The Casparian strip is drawn as it is in 3D: a lignified belt around each endodermal cell, not a dot.</li>
+        <li>Shot 7 runs in its own nanometre-scale scene. The bilayer is about 4 nm thick with 18% phytosterols. Aquaporins are tetramers, each monomer with six membrane helices and two half-helices meeting at the NPA motif; waters point their hydrogens away from it, the orientation that blocks proton hopping. The H⁺-ATPase has 10 membrane helices plus N, P and A domains; the nitrate symporter has 12 helices in two rocking halves. Proteins are shown as helix cylinders, not atomic surfaces; bulk water is thinned to about 5% so the scene stays readable.</li>
+      </ul>
+    </div>
+    <div class="note">
+      <h3>Next in the full build</h3>
+      <ul>
+        <li>Live arbuscule turnover: collapse after a few days and regrowth in a neighbouring cell.</li>
+        <li>A legume version with nitrogen-fixing nodules and rhizobia.</li>
+        <li>Atomic-resolution protein surfaces built from PDB structures (local copy, loaded from file).</li>
+        <li>A confocal fluorescence mode next to the brightfield stain.</li>
+        <li>Presenter mode: clicker stops at each shot, speaker notes, 4K video export from the local copy.</li>
+      </ul>
+    </div>
+  </section>
+
+  <article class="paper" aria-labelledby="sb">
+    <h2 id="sb">Scientific basis, shot by shot</h2>
+    <p class="abs">Every size, rate and structure on screen comes from the literature below. Where the animation compresses time or simplifies geometry, the on-screen labels say so.</p>
+    <section>
+      <h3>Shot 1 · A flowering cherry</h3>
+      <p>The tree is a Yoshino cherry, <i>Prunus × yedoensis</i>, which blooms before its leaves emerge; its flowers have five notched pale-pink petals and hang in umbels of two to five on long pedicels<sup class="cite"><a href="#r29">29</a></sup>. Cherry bark is glossy and marked by horizontal lenticels. Like most fruit trees, cherries root shallowly: most woody roots lie in the top 60 cm and spread beyond the crown, with a few sinker roots going deeper<sup class="cite"><a href="#r30">30</a>,<a href="#r31">31</a></sup>. The roots branch through four orders down to absorptive fine roots under 1 mm in diameter, the ones that carry root hairs and mycorrhizal partners<sup class="cite"><a href="#r32">32</a></sup>. Root growth is compressed to about five years per second. With the soil made transparent, the root system is shown as excavation or X-ray tomography reveals it<sup class="cite"><a href="#r1">1</a></sup>; <i>Prunus</i> forms arbuscular mycorrhizas, which is why shots 5 and 6 show that partnership<sup class="cite"><a href="#r14">14</a></sup>.</p>
+    </section>
+    <section>
+      <h3>Shot 2 · Root, hairs and soil water</h3>
+      <p>The lateral root is 0.5 mm wide. Root hairs are tip-growing outgrowths of single epidermal cells, about 10 µm wide and up to roughly 1 mm long<sup class="cite"><a href="#r2">2</a></sup>. The grains are 0.1–0.6 mm, the fine-to-medium sand class<sup class="cite"><a href="#r3">3</a></sup>. Water is held between grains by capillarity, so the widest pore that stays water-filled at a given matric potential ψ follows the Young–Laplace relation<sup class="cite"><a href="#r3">3</a></sup>:</p>
+      <p class="eq">r = 2γ cos θ / |ψ|    (γ = 0.0728 N m⁻¹, θ ≈ 0)</p>
+      <p>Water converging on a single root behaves as a line sink, so its speed rises as 1/r near the root surface<sup class="cite"><a href="#r4">4</a></sup>. Relative hydraulic conductivity under the drought slider follows the van Genuchten–Mualem model<sup class="cite"><a href="#r5">5</a>,<a href="#r6">6</a></sup> with loam parameters (α = 0.036 cm⁻¹, n = 1.56)<sup class="cite"><a href="#r7">7</a></sup>:</p>
+      <p class="eq">Sₑ = [1 + (α h)ⁿ]^(−m),  m = 1 − 1/n;   K/Kₛ = Sₑ^½ [1 − (1 − Sₑ^(1/m))^m]²</p>
+    </section>
+    <section>
+      <h3>Shots 3–4 · The cut and the stained section</h3>
+      <p>The section is a tetrarch dicot root: exarch xylem with protoxylem at four poles, wide metaxylem in the centre and phloem strands alternating with the xylem arms<sup class="cite"><a href="#r8">8</a></sup>. The Casparian strip is a lignin polymer deposited in the radial and transverse walls of the endodermis<sup class="cite"><a href="#r9">9</a>,<a href="#r10">10</a></sup>. Colours follow the safranin / fast-green double stain, lignin red and cellulose green<sup class="cite"><a href="#r11">11</a></sup>. Water moves inward along apoplastic, symplastic and transcellular routes until the Casparian strip forces it across a plasma membrane<sup class="cite"><a href="#r12">12</a></sup>.</p>
+    </section>
+    <section>
+      <h3>Shot 5 · Fungal partners</h3>
+      <p>Arbuscular mycorrhizal fungi associate with about 72% of vascular plant species<sup class="cite"><a href="#r13">13</a></sup>. Their hyphae are a few micrometres wide and reach beyond the phosphate depletion zone; spores range from about 40 to 800 µm<sup class="cite"><a href="#r14">14</a></sup>. The plant pays in sugars and in fatty acids that the fungus cannot make itself<sup class="cite"><a href="#r15">15</a>,<a href="#r16">16</a></sup>.</p>
+    </section>
+    <section>
+      <h3>Shot 6 · Inside the cortex</h3>
+      <p>Arbuscules form in inner cortical cells next to the endodermis. Each is enclosed by a plant-made periarbuscular membrane; the host cell's nucleus moves to the centre and its starch is depleted<sup class="cite"><a href="#r17">17</a></sup>. Individual arbuscules collapse after a few days and are replaced<sup class="cite"><a href="#r18">18</a></sup>. The Casparian strip is drawn as the continuous belt it forms around each endodermal cell<sup class="cite"><a href="#r10">10</a></sup>.</p>
+    </section>
+    <section>
+      <h3>Shot 7 · The membrane</h3>
+      <p>Plant plasma membranes are rich in phytosterols, which order the bilayer<sup class="cite"><a href="#r19">19</a></sup>. Aquaporins are tetramers; each monomer has six membrane helices and two half-helices that meet at the NPA motifs in the middle of the pore<sup class="cite"><a href="#r20">20</a>,<a href="#r21">21</a></sup>. Water crosses in single file, and its dipole flips at the NPA region, which prevents proton hopping<sup class="cite"><a href="#r22">22</a></sup>; one channel passes on the order of 3 × 10⁹ water molecules per second<sup class="cite"><a href="#r23">23</a></sup>. The plasma-membrane H⁺-ATPase has ten membrane helices and cytosolic N, P and A domains<sup class="cite"><a href="#r24">24</a></sup>, and moves one proton per ATP to build a membrane potential of about −120 to −200 mV<sup class="cite"><a href="#r12">12</a>,<a href="#r25">25</a></sup>. The nitrate transporter NRT1.1 has twelve membrane helices in two halves that rock between outward- and inward-open states<sup class="cite"><a href="#r26">26</a>,<a href="#r27">27</a></sup>, coupling nitrate uptake to the proton gradient<sup class="cite"><a href="#r28">28</a></sup>.</p>
+    </section>
+  </article>
+
+  <section class="refs" aria-labelledby="rf">
+    <h2 id="rf">References</h2>
+    <ol>
+      <li id="r1">Mooney SJ, Pridmore TP, Helliwell J, Bennett MJ (2012). Developing X-ray computed tomography to non-invasively image 3-D root systems architecture in soil. <i>Plant and Soil</i> 352: 1–22.</li>
+      <li id="r2">Grierson C, Nielsen E, Ketelaar T, Schiefelbein J (2014). Root hairs. <i>The Arabidopsis Book</i> 12: e0172.</li>
+      <li id="r3">Hillel D (1998). <i>Environmental Soil Physics</i>. Academic Press, San Diego.</li>
+      <li id="r4">Gardner WR (1960). Dynamic aspects of water availability to plants. <i>Soil Science</i> 89: 63–73.</li>
+      <li id="r5">van Genuchten MTh (1980). A closed-form equation for predicting the hydraulic conductivity of unsaturated soils. <i>Soil Science Society of America Journal</i> 44: 892–898.</li>
+      <li id="r6">Mualem Y (1976). A new model for predicting the hydraulic conductivity of unsaturated porous media. <i>Water Resources Research</i> 12: 513–522.</li>
+      <li id="r7">Carsel RF, Parrish RS (1988). Developing joint probability distributions of soil water retention characteristics. <i>Water Resources Research</i> 24: 755–769.</li>
+      <li id="r8">Esau K (1977). <i>Anatomy of Seed Plants</i>, 2nd ed. John Wiley &amp; Sons, New York.</li>
+      <li id="r9">Naseer S, Lee Y, Lapierre C, Franke R, Nawrath C, Geldner N (2012). Casparian strip diffusion barrier in <i>Arabidopsis</i> is made of a lignin polymer without suberin. <i>PNAS</i> 109: 10101–10106.</li>
+      <li id="r10">Geldner N (2013). The endodermis. <i>Annual Review of Plant Biology</i> 64: 531–558.</li>
+      <li id="r11">Ruzin SE (1999). <i>Plant Microtechnique and Microscopy</i>. Oxford University Press, New York.</li>
+      <li id="r12">Taiz L, Zeiger E, Møller IM, Murphy A (2015). <i>Plant Physiology and Development</i>, 6th ed. Sinauer Associates, Sunderland.</li>
+      <li id="r13">Brundrett MC, Tedersoo L (2018). Evolutionary history of mycorrhizal symbioses and global host plant diversity. <i>New Phytologist</i> 220: 1108–1115.</li>
+      <li id="r14">Smith SE, Read DJ (2008). <i>Mycorrhizal Symbiosis</i>, 3rd ed. Academic Press, London.</li>
+      <li id="r15">Jiang Y, Wang W, Xie Q, et al. (2017). Plants transfer lipids to sustain colonization by mutualistic mycorrhizal and pathogenic fungi. <i>Science</i> 356: 1172–1175.</li>
+      <li id="r16">Luginbuehl LH, Menard GN, Kurup S, et al. (2017). Fatty acids in arbuscular mycorrhizal fungi are synthesized by the host plant. <i>Science</i> 356: 1175–1178.</li>
+      <li id="r17">Gutjahr C, Parniske M (2013). Cell and developmental biology of arbuscular mycorrhiza symbiosis. <i>Annual Review of Cell and Developmental Biology</i> 29: 593–617.</li>
+      <li id="r18">Kobae Y, Hata S (2010). Dynamics of periarbuscular membranes visualized with a fluorescent phosphate transporter in arbuscular mycorrhizal roots of rice. <i>Plant and Cell Physiology</i> 51: 341–353.</li>
+      <li id="r19">Schaller H (2003). The role of sterols in plant growth and development. <i>Progress in Lipid Research</i> 42: 163–175.</li>
+      <li id="r20">Murata K, Mitsuoka K, Hirai T, et al. (2000). Structural determinants of water permeation through aquaporin-1. <i>Nature</i> 407: 599–605.</li>
+      <li id="r21">Törnroth-Horsefield S, Wang Y, Hedfalk K, et al. (2006). Structural mechanism of plant aquaporin gating. <i>Nature</i> 439: 688–694.</li>
+      <li id="r22">de Groot BL, Grubmüller H (2001). Water permeation across biological membranes: mechanism and dynamics of aquaporin-1 and GlpF. <i>Science</i> 294: 2353–2357.</li>
+      <li id="r23">Zeidel ML, Ambudkar SV, Smith BL, Agre P (1992). Reconstitution of functional water channels in liposomes containing purified red cell CHIP28 protein. <i>Biochemistry</i> 31: 7436–7440.</li>
+      <li id="r24">Pedersen BP, Buch-Pedersen MJ, Morth JP, Palmgren MG, Nissen P (2007). Crystal structure of the plasma membrane proton pump. <i>Nature</i> 450: 1111–1114.</li>
+      <li id="r25">Palmgren MG (2001). Plant plasma membrane H⁺-ATPases: powerhouses for nutrient uptake. <i>Annual Review of Plant Physiology and Plant Molecular Biology</i> 52: 817–845.</li>
+      <li id="r26">Parker JL, Newstead S (2014). Molecular basis of nitrate uptake by the plant nitrate transporter NRT1.1. <i>Nature</i> 507: 68–72.</li>
+      <li id="r27">Sun J, Bankston JR, Payandeh J, Hinds TR, Zagotta WN, Zheng N (2014). Crystal structure of the plant dual-affinity nitrate transporter NRT1.1. <i>Nature</i> 507: 73–77.</li>
+      <li id="r28">Miller AJ, Fan X, Orsel M, Smith SJ, Wells DM (2007). Nitrate transport and signalling. <i>Journal of Experimental Botany</i> 58: 2297–2306.</li>
+      <li id="r29">Rehder A (1940). <i>Manual of Cultivated Trees and Shrubs Hardy in North America</i>, 2nd ed. Macmillan, New York.</li>
+      <li id="r30">Atkinson D (1980). The distribution and effectiveness of the roots of tree crops. <i>Horticultural Reviews</i> 2: 424–490.</li>
+      <li id="r31">Jackson RB, Canadell J, Ehleringer JR, Mooney HA, Sala OE, Schulze ED (1996). A global analysis of root distributions for terrestrial biomes. <i>Oecologia</i> 108: 389–411.</li>
+      <li id="r32">McCormack ML, Dickie IA, Eissenstat DM, et al. (2015). Redefining fine roots improves understanding of below-ground contributions to terrestrial biosphere processes. <i>New Phytologist</i> 207: 505–518.</li>
+    </ol>
+  </section>
+  <p class="foot">Keyboard: space plays or pauses, ← → step one second, PageDown / PageUp (or a presentation clicker) jump between shots, F toggles full screen. Lens FX (off by default) adds depth of field, vignette and film grain. Rendered with three.js (WebGL 2).</p>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
+<script>
+(() => {
+'use strict';
+const loadingEl = document.getElementById('loading');
+if (!window.THREE){ loadingEl.textContent = 'The 3D library did not load. Check the connection and reload the page.'; return; }
+const V3 = THREE.Vector3, TAU = Math.PI * 2, TOTAL = 74;
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const lerp = (a, b, t) => a + (b - a) * t;
+const ss = (a, b, t) => { const u = clamp((t - a) / (b - a)); return u * u * (3 - 2 * u); };
+const ease = u => u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+function rng(seed){ return function(){ seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+/* ---------------- renderer ---------------- */
+const stage = document.getElementById('stage'), glc = document.getElementById('gl'), hud = document.getElementById('hud'), hx = hud.getContext('2d');
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({canvas:glc, antialias:true, logarithmicDepthBuffer:true, powerPreference:'high-performance'});
+} catch (e){ loadingEl.textContent = 'WebGL 2 is not available in this browser, so the 3D shot cannot run.'; return; }
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.92;
+renderer.localClippingEnabled = true;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+const BG = new THREE.Color(0x06080b).convertSRGBToLinear(); scene.background = BG; scene.fog = new THREE.FogExp2(BG.getHex(), 0.01);
+const camera = new THREE.PerspectiveCamera(35, 16 / 9, 0.0004, 300);
+
+const hemi = new THREE.HemisphereLight(0xcfe2ff, 0x3a2a18, 0.5); scene.add(hemi);
+const key = new THREE.DirectionalLight(0xfff0dc, 1.7); key.castShadow = true; key.shadow.mapSize.set(2048, 2048); key.shadow.bias = -0.0004; scene.add(key, key.target);
+const rim = new THREE.DirectionalLight(0x86b8ff, 1.1); scene.add(rim, rim.target);
+const KEYDIR = new V3(0.45, 0.85, 0.3).normalize(), RIMDIR = new V3(-0.6, 0.2, -0.75).normalize();
+
+/* ---------------- tube builder (parallel-transport frames) ---------------- */
+function tubeGeo(pts, radii, radial, colFn){
+  const n = pts.length, pos = [], nor = [], col = [], cell = [], idx = [];
+  const tans = pts.map((p, i) => pts[Math.min(n - 1, i + 1)].clone().sub(pts[Math.max(0, i - 1)]).normalize());
+  const N = Math.abs(tans[0].y) > 0.9 ? new V3(1, 0, 0) : new V3(0, 1, 0);
+  N.sub(tans[0].clone().multiplyScalar(N.dot(tans[0]))).normalize();
+  const B = new V3(), d = new V3(), c = new THREE.Color(); let s = 0;
+  const frames = [];
+  for (let i = 0; i < n; i++){
+    if (i > 0){
+      s += pts[i].distanceTo(pts[i - 1]);
+      const ax = new V3().crossVectors(tans[i - 1], tans[i]); const l = ax.length();
+      if (l > 1e-7) N.applyAxisAngle(ax.multiplyScalar(1 / l), Math.acos(clamp(tans[i - 1].dot(tans[i]), -1, 1)));
+    }
+    B.crossVectors(tans[i], N).normalize();
+    frames.push({N:N.clone(), B:B.clone(), T:tans[i].clone(), s});
+    colFn(i / (n - 1), c);
+    for (let j = 0; j <= radial; j++){
+      const th = j / radial * TAU; d.copy(N).multiplyScalar(Math.cos(th)).addScaledVector(B, Math.sin(th));
+      pos.push(pts[i].x + d.x * radii[i], pts[i].y + d.y * radii[i], pts[i].z + d.z * radii[i]);
+      nor.push(d.x, d.y, d.z); col.push(c.r, c.g, c.b); cell.push(j / radial, s);
+    }
+  }
+  const R1 = radial + 1;
+  for (let i = 0; i < n - 1; i++) for (let j = 0; j < radial; j++){
+    const a = i * R1 + j, b = a + 1, e = a + R1, f = e + 1; idx.push(a, b, e, b, f, e);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.setAttribute('aCell', new THREE.Float32BufferAttribute(cell, 2));
+  g.setIndex(idx);
+  return {geo:g, perRing:radial * 6, rings:n - 1, frames, length:s};
+}
+
+/* root surface: epidermal cell files drawn procedurally, faded out when sub-pixel */
+const ctU = {value:0};
+function rootMat(clip){
+  const m = new THREE.MeshPhysicalMaterial({vertexColors:true, roughness:0.5, metalness:0, emissive:0xff6a12, emissiveIntensity:0, clearcoat:0.35, clearcoatRoughness:0.35, sheen:0.6, sheenRoughness:0.55, sheenColor:new THREE.Color(0xfff6e6)});
+  if (clip) m.clippingPlanes = clip;
+  m.onBeforeCompile = sh => {
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec2 aCell;\nvarying vec2 vCell;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvCell = aCell;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vCell;')
+      .replace('#include <color_fragment>', `#include <color_fragment>
+      {
+        vec2 g = vec2(vCell.x * 64.0, vCell.y / 0.016);
+        float fi = floor(g.x); g.y += fract(sin(fi * 91.7) * 437.5);
+        vec2 f = fract(g); vec2 fw = max(fwidth(g), vec2(1e-4));
+        float ex = min(f.x, 1.0 - f.x) / fw.x, ey = min(f.y, 1.0 - f.y) / fw.y;
+        float ln = 1.0 - clamp(min(ex, ey) / 1.4, 0.0, 1.0);
+        float vis = 1.0 - smoothstep(0.06, 0.25, max(fw.x, fw.y));
+        float nuc = smoothstep(0.16, 0.1, length((f - vec2(0.5, 0.35)) * vec2(1.0, 4.5))) * vis;
+        diffuseColor.rgb *= 1.0 - 0.32 * ln * vis;
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.62, 0.55, 0.62), nuc * 0.35);
+      }`);
+  };
+  return m;
+}
+
+/* ---------------- root system ---------------- */
+const BOX = {x:5.8, zmin:-4.8, zmax:4.8, ymin:-9.8, ymax:-0.05};
+const inBox = p => Math.abs(p.x) < BOX.x && p.z > BOX.zmin && p.z < BOX.zmax && p.y > BOX.ymin && p.y < BOX.ymax;
+const roots = [];
+const R = rng(5);
+const rootCol = (tip0, tip1) => (u, c) => { c.setRGB(lerp(tip0[0], tip1[0], u), lerp(tip0[1], tip1[1], u), lerp(tip0[2], tip1[2], u)); };
+const OLD = [0.62, 0.52, 0.38], YOUNG = [0.95, 0.92, 0.84];
+
+function walk(start, dir, len, step, jit, grav){
+  const pts = [start.clone()], d = dir.clone().normalize(), p = start.clone();
+  for (let k = 0; k < len / step; k++){
+    d.x += (R() - 0.5) * jit; d.y += (R() - 0.5) * jit; d.z += (R() - 0.5) * jit; d.y -= grav; d.normalize();
+    p.addScaledVector(d, step); if (!inBox(p)) break; pts.push(p.clone());
+  }
+  return pts;
+}
+function addRoot(pts, r0, r1, t0, speed, mat, radial, hero){
+  if (pts.length < 4) return null;
+  const n = pts.length, radii = pts.map((_, i) => { const u = i / (n - 1); return lerp(r0, r1, u) * (u > 0.93 ? lerp(1, 0.55, (u - 0.93) / 0.07) : 1); });
+  const tb = tubeGeo(pts, radii, radial, hero ? rootCol([0.86, 0.81, 0.70], [0.93, 0.90, 0.83]) : rootCol(OLD, YOUNG));
+  const mesh = new THREE.Mesh(tb.geo, mat); mesh.castShadow = true; mesh.receiveShadow = true; mesh.frustumCulled = false;
+  scene.add(mesh);
+  const r = {pts, radii, tb, mesh, t0, dur:tb.length / speed, hero}; roots.push(r); return r;
+}
+const matRoot = rootMat(null);
+const cutPlane = new THREE.Plane(new V3(0, 1, 0), 1e6);
+const matHero = rootMat([cutPlane]);
+
+const main = walk(new V3(0, -0.6, 0), new V3(0.04, -1, 0.02), 9.4, 0.06, 0.05, 0.002);
+const mainR = addRoot(main, 0.1, 0.045, 5.2, 2.4, matRoot, 12);
+const sAt = (rt, k) => rt.tb.frames[k].s;
+
+/* hero lateral root: smooth curve so the cut and the close-up are clean */
+const hk = main.findIndex(p => p.y < -3.7);
+const H0 = main[hk].clone();
+const hdir = new V3(0.62, -0.2, 0.76).normalize();
+const hcurve = new THREE.CatmullRomCurve3([H0, H0.clone().addScaledVector(hdir, 0.9).add(new V3(0, 0.05, -0.05)), H0.clone().addScaledVector(hdir, 2.0).add(new V3(0.05, -0.04, 0)), H0.clone().addScaledVector(hdir, 3.1), H0.clone().addScaledVector(hdir, 4.2).add(new V3(0, -0.12, 0.05))]);
+const heroPts = hcurve.getSpacedPoints(260);
+const hero = addRoot(heroPts, 0.03, 0.022, mainR.t0 + sAt(mainR, hk) / 2.4, 1.45, matHero, 36, true);
+hero.mesh.receiveShadow = false;
+let pIdx = 0; { const tgt = hero.tb.length * 0.68; pIdx = hero.tb.frames.findIndex(f => f.s >= tgt); }
+const P = heroPts[pIdx].clone(), PF = hero.tb.frames[pIdx], T = PF.T.clone(), RW = hero.radii[pIdx];
+
+/* other laterals, kept clear of the close-up region */
+for (let i = 0; i < 16; i++){
+  const k = Math.floor(lerp(0.07, 0.9, (i + R() * 0.5) / 16) * (main.length - 1));
+  if (Math.abs(k - hk) < 6) continue;
+  const az = i * 2.39996 + 0.4, d = new V3(Math.cos(az), -0.35, Math.sin(az));
+  const len = lerp(4.2, 1.6, k / main.length) * (0.7 + R() * 0.5);
+  let pts = walk(main[k], d, len, 0.06, 0.09, 0.006);
+  const cut = pts.findIndex(p => p.distanceTo(P) < 0.9); if (cut >= 0) pts = pts.slice(0, cut);
+  const lr = addRoot(pts, 0.034, 0.018, mainR.t0 + sAt(mainR, k) / 2.4, 1.5, matRoot, 10);
+  if (!lr) continue;
+  for (let j = 0; j < 4; j++){
+    const kk = Math.floor(lerp(0.2, 0.85, (j + R()) / 4) * (lr.pts.length - 1)), base = lr.pts[kk];
+    const perp = new V3(R() - 0.5, (R() - 0.5) * 0.5, R() - 0.5).cross(lr.tb.frames[kk].T).normalize().addScaledVector(lr.tb.frames[kk].T, 0.4);
+    let sp = walk(base, perp, 0.4 + R() * 0.8, 0.05, 0.14, 0.004);
+    const c2 = sp.findIndex(p => p.distanceTo(P) < 0.9); if (c2 >= 0) sp = sp.slice(0, c2);
+    addRoot(sp, 0.016, 0.01, lr.t0 + lr.tb.frames[kk].s / 1.5, 1.2, matRoot, 8);
+  }
+}
+
+/* ---------------- shot 1: a flowering Yoshino cherry and its whole root system ---------------- */
+const TB = new V3(-80, 0, -50), treeT = {value:0};
+function barkMat(color, gloss, lent){
+  const m = new THREE.MeshPhysicalMaterial({color, roughness:0.6, metalness:0, clearcoat:gloss, clearcoatRoughness:0.45, emissive:0xff6a12, emissiveIntensity:0, side:THREE.DoubleSide});
+  m.onBeforeCompile = sh => { sh.uniforms.uGrow = treeT;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aBirth; attribute vec2 aUV; varying float vBirth; varying vec2 vUV2;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvBirth = aBirth; vUV2 = aUV;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vBirth; varying vec2 vUV2; uniform float uGrow;')
+      .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\nif (vBirth > uGrow) discard;')
+      .replace('#include <color_fragment>', `#include <color_fragment>
+      {
+        vec2 g = vec2(vUV2.x * ${lent ? '34.0' : '18.0'}, vUV2.y / ${lent ? '1.3' : '0.9'}); vec2 id = floor(g), f = fract(g);
+        float h = fract(sin(dot(id, vec2(12.9898, 78.233))) * 43758.5453);
+        float dash = step(0.58, h) * (1.0 - smoothstep(0.04, 0.09, abs(f.y - 0.5))) * step(0.12, f.x) * step(f.x, 0.12 + 0.75 * h);
+        vec2 fw = fwidth(g); float vis = 1.0 - smoothstep(0.25, 0.7, max(fw.x, fw.y));
+        float streak = 0.92 + 0.08 * sin(vUV2.x * 120.0 + h * 6.0);
+        diffuseColor.rgb *= streak;
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.66, 0.58, 0.50), dash * vis * ${lent ? '0.85' : '0.35'});
+      }`); };
+  return m;
+}
+/* crown: sympodial branching, trunk → 4 scaffolds → five more orders; flowers in umbels of 2–5 on long pedicels */
+const crown = [], flowerSpots = [];
+{
+  const rT = rng(303);
+  const branch = (p, dir, len, r0, depth) => {
+    const segL = depth < 2 ? 5 : depth < 4 ? 2.5 : 1.2, n = Math.max(3, Math.round(len / segL));
+    const pts = [p.clone()], rs = [r0], d = dir.clone().normalize(), q = p.clone();
+    for (let k = 1; k <= n; k++){
+      d.x += (rT() - 0.5) * 0.16; d.z += (rT() - 0.5) * 0.16; d.y += (rT() - 0.5) * 0.08 + (depth === 0 ? 0.02 : depth <= 2 ? 0.006 : 0.018) - (depth >= 5 ? 0.05 : 0); d.normalize();
+      q.addScaledVector(d, len / n); pts.push(q.clone()); rs.push(r0 * (1 - 0.36 * k / n));
+    }
+    crown.push({pts, rs, b:pts.map(() => -1), depth});
+    if (depth >= 3){
+      for (let s = 0.22; s <= 1.0; s += 3.4 / len){
+        const i = Math.min(n, Math.round(s * n)), c = pts[i], nf = 2 + Math.floor(rT() * 4);
+        const cd = new V3(rT() - 0.5, rT() * 0.9 - 0.25, rT() - 0.5).normalize(), cc = c.clone().addScaledVector(cd, 0.6);
+        const bl = 1.4 + rT() * 2.6 + clamp((cc.y - 150) / 300) * 1.2;
+        for (let f = 0; f < nf; f++){ const fd = cd.clone().add(new V3(rT() - 0.5, rT() - 0.5, rT() - 0.5).multiplyScalar(1.2)).normalize(); flowerSpots.push({p:cc.clone().addScaledVector(fd, 2.4), n:fd, bloom:bl + rT() * 0.8}); }
+      }
+    }
+    if (depth < 6){
+      const nc = depth === 0 ? 5 : depth < 3 ? 3 : (rT() < 0.5 ? 2 : 3);
+      for (let c = 0; c < nc; c++){
+        const f = depth === 0 ? 1 : 0.45 + rT() * 0.5, i = Math.min(n, Math.round(f * n));
+        const perp = depth === 0 ? new V3(Math.cos(c / 5 * TAU + 0.5), 0, Math.sin(c / 5 * TAU + 0.5)) : new V3(rT() - 0.5, (rT() - 0.5) * 0.4, rT() - 0.5);
+        perp.addScaledVector(d, -perp.dot(d)).normalize();
+        const ang = depth === 0 ? 0.95 + rT() * 0.2 : depth < 3 ? 0.5 + rT() * 0.35 : 0.42 + rT() * 0.45, nd = d.clone().multiplyScalar(Math.cos(ang)).addScaledVector(perp, Math.sin(ang)); nd.y += depth === 0 ? 0.05 : depth < 3 ? 0.06 : 0.03; nd.normalize();
+        branch(pts[i], nd, len * (depth === 0 ? 1.15 : 0.64 + rT() * 0.12), rs[i] * (depth === 0 ? 0.56 : 0.66), depth + 1);
+      }
+    }
+  };
+  branch(TB.clone().add(new V3(0, -10, 0)), new V3(0.03, 1, 0.02), 150, 19, 0);
+}
+const crownMeshes = [];
+{
+  const barkTop = barkMat(0x4a2a24, 0.35, true), barkTwig = barkMat(0x5a3428, 0.25, true);
+  [[0, 1, 28, barkTop], [2, 3, 14, barkTop], [4, 6, 6, barkTwig]].forEach(([d0, d1, RAD, mat]) => {
+    const g = mergeTubes(crown.filter(c => c.depth >= d0 && c.depth <= d1).map(c => ({pts:c.pts, rs:c.rs, b:c.b})), RAD);
+    const m = new THREE.Mesh(g, mat); m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; scene.add(m); crownMeshes.push(m);
+  });
+}
+/* flower: five notched petals (pale pink, deeper at the base), yellow anthers, a 2.4 cm pedicel */
+function flowerGeo(single){
+  const pos = [], col = [], idx = []; const add = (x, y, z, c) => { pos.push(x, y, z); col.push(c[0], c[1], c[2]); return pos.length / 3 - 1; };
+  const base = [0.9, 0.42, 0.6], tip = [1.0, 0.84, 0.9], nP = single ? 1 : 5;
+  for (let k = 0; k < nP; k++){
+    const a0 = k / 5 * TAU + 0.3, ca = Math.cos(a0), sa = Math.sin(a0), vid = [];
+    for (let i = 0; i <= 7; i++){ const u = i / 7, half = 0.68 * Math.sin(Math.PI * Math.min(1, 0.12 + u * 0.95)) * (0.35 + 0.65 * Math.min(1, u * 3));
+      for (let j = 0; j <= 4; j++){ const v = j / 2 - 1; let r = 0.12 + u * 1.6; if (i === 7) r -= 0.2 * (1 - Math.abs(v));
+        const lx = r, ly = v * half, z = 0.28 * u * u + 0.06 * (1 - Math.abs(v)) * u, x = lx * ca - ly * sa, y = lx * sa + ly * ca;
+        vid.push(add(x, y, z, [lerp(base[0], tip[0], Math.pow(u, 0.6)), lerp(base[1], tip[1], Math.pow(u, 0.6)), lerp(base[2], tip[2], Math.pow(u, 0.6))])); } }
+    for (let i = 0; i < 7; i++) for (let j = 0; j < 4; j++){ const a = vid[i * 5 + j], b = a + 1, c = vid[(i + 1) * 5 + j], d = c + 1; idx.push(a, c, b, b, c, d); }
+  }
+  if (!single){
+    const cc = [0.82, 0.78, 0.4], c0 = add(0, 0, 0.06, cc); const ring = []; for (let k = 0; k < 10; k++){ const a = k / 10 * TAU; ring.push(add(Math.cos(a) * 0.32, Math.sin(a) * 0.32, 0.04, cc)); }
+    for (let k = 0; k < 10; k++) idx.push(c0, ring[k], ring[(k + 1) % 10]);
+    for (let k = 0; k < 16; k++){ const a = k / 16 * TAU, r = 0.5, x = Math.cos(a) * r, y = Math.sin(a) * r, z = 0.55, y0 = [1.0, 0.82, 0.32];
+      const f0 = add(Math.cos(a) * 0.2, Math.sin(a) * 0.2, 0.05, [0.95, 0.9, 0.8]); const f1 = add(x + 0.05, y, z, y0), f2 = add(x - 0.05, y + 0.05, z + 0.06, y0), f3 = add(x, y - 0.05, z + 0.08, y0); idx.push(f0, f1, f2, f0, f2, f3, f1, f2, f3); }
+    const gp = [0.45, 0.6, 0.32]; for (const [ox, oy] of [[0.07, 0], [0, 0.07]]){ const a = add(-ox, -oy, 0, gp), b = add(ox, oy, 0, gp), c = add(ox, oy, -2.4, gp), d = add(-ox, -oy, -2.4, gp); idx.push(a, b, c, a, c, d); }
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
+}
+const flowerMat = new THREE.MeshStandardMaterial({vertexColors:true, side:THREE.DoubleSide, roughness:0.5, emissive:0x3a1a22, emissiveIntensity:0.35});
+flowerMat.onBeforeCompile = sh => { sh.uniforms.uT = treeT;
+  sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aBloom; uniform float uT;').replace('#include <begin_vertex>', '#include <begin_vertex>\n{ float o = smoothstep(aBloom, aBloom + 1.3, uT); transformed.xy *= 0.25 + 0.75 * o; transformed.z *= 0.6 + 0.4 * o; transformed *= max(0.0001, smoothstep(aBloom - 0.8, aBloom, uT)); }'); };
+const flowers = new THREE.InstancedMesh(flowerGeo(false), flowerMat, flowerSpots.length);
+{
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), z = new V3(0, 0, 1), bl = new Float32Array(flowerSpots.length);
+  flowerSpots.forEach((f, i) => { q.setFromUnitVectors(z, f.n); const tw = new THREE.Quaternion().setFromAxisAngle(f.n, i * 2.4); q.premultiply(tw); m4.compose(f.p, q, new V3(1, 1, 1).multiplyScalar(1.0 + (i % 7) * 0.05)); flowers.setMatrixAt(i, m4); bl[i] = -10; }); /* every flower fully open for the whole shot */
+  flowers.geometry.setAttribute('aBloom', new THREE.InstancedBufferAttribute(bl, 1));
+}
+flowers.frustumCulled = false; flowers.castShadow = true; scene.add(flowers);
+
+/* root system: structural roots in the top ~60 cm, three sinkers, four branching orders down to fine roots < 1 mm */
+const treeRootMats = [];
+{
+  const rr = rng(404), orders = [[], [], [], []];
+  const nearP = p => p.distanceTo(P) < 3.2;
+  const grow = (start, dir, len, r0, r1, order, t0, dMax, connector) => {
+    const step = [5, 2.5, 1.0, 0.45][order], speed = [75, 60, 40, 24][order], jit = [0.1, 0.2, 0.32, 0.42][order];
+    const pts = [start.clone()], rs = [r0], b = [t0], d = dir.clone().normalize(), p = start.clone(); let tt = t0;
+    const n = Math.max(3, Math.round(len / step));
+    for (let k = 1; k <= n; k++){
+      d.x += (rr() - 0.5) * jit; d.z += (rr() - 0.5) * jit; d.y += (rr() - 0.5) * jit * 0.6;
+      if (p.y > -4) d.y -= 0.22; if (p.y < -dMax) d.y += 0.3;
+      d.normalize(); p.addScaledVector(d, step); if (p.y > -1.5) p.y = -1.5;
+      if (!connector && nearP(p)) break;
+      const u = k / n; pts.push(p.clone()); rs.push(r1 + (r0 - r1) * Math.exp(-3.2 * u) * (1 - 0.2 * u)); tt += step / speed; b.push(tt);
+    }
+    if (pts.length < 2) return;
+    orders[order].push({pts, rs, b});
+    if (order < 3){
+      const sp = [16, 5.5, 1.7][order], L0 = (pts.length - 1) * step;
+      for (let s = sp * 0.7; s < L0 * 0.95; s += sp * (0.6 + rr() * 0.8)){
+        const i = Math.min(pts.length - 1, Math.round(s / step)), pd = (i < pts.length - 1 ? pts[i + 1].clone().sub(pts[i]) : d.clone()).normalize();
+        const side = new V3(rr() - 0.5, (rr() - 0.5) * 0.5, rr() - 0.5); side.addScaledVector(pd, -side.dot(pd)).normalize();
+        const cd = side.addScaledVector(pd, 0.35).normalize(), cl = [[40, 150], [8, 35], [1.5, 6]][order];
+        const L = (cl[0] + rr() * (cl[1] - cl[0])) * (1 - 0.4 * s / L0), cr0 = Math.min(rs[i] * 0.5, [1.6, 0.35, 0.06][order]);
+        grow(pts[i], cd, L, cr0, Math.max(cr0 * 0.3, 0.025), order + 1, b[i] + 0.05, dMax, false);
+      }
+    }
+  };
+  for (let k = 0; k < 7; k++){ const az = k / 7 * TAU + 0.3 + rr() * 0.3; grow(TB.clone().add(new V3(Math.cos(az) * 14, -10, Math.sin(az) * 14)), new V3(Math.cos(az), -0.12, Math.sin(az)), 240 + rr() * 150, 9, 0.6, 0, 0.3, 55 + rr() * 30, false); }
+  for (let k = 0; k < 3; k++){ const a = rr() * TAU; grow(TB.clone().add(new V3(Math.cos(a) * 22, -14, Math.sin(a) * 22)), new V3((rr() - 0.5) * 0.3, -1, (rr() - 0.5) * 0.3), 110 + rr() * 50, 4, 0.4, 1, 0.6, 170, false); }
+  /* the root that leads to the close-up: a structural root tapering into the fine-root cluster at the origin */
+  const cp = new THREE.CatmullRomCurve3([TB.clone().add(new V3(12, -12, 8)), new V3(-52, -16, -30), new V3(-27, -11, -13), new V3(-9, -4, -3), new V3(0, -0.6, 0)]).getSpacedPoints(60);
+  { const rs = cp.map((_, i) => 0.1 + 6.4 * Math.exp(-3.4 * i / 60)), b = []; let tt = 0.3; cp.forEach((q, i) => { if (i) tt += q.distanceTo(cp[i - 1]) / 75; b.push(tt); }); orders[0].push({pts:cp, rs, b});
+    for (let i = 4; i < 44; i += 3){ const pd = cp[i + 1].clone().sub(cp[i]).normalize(), side = new V3(rr() - 0.5, (rr() - 0.5) * 0.4, rr() - 0.5); side.addScaledVector(pd, -side.dot(pd)).normalize(); grow(cp[i], side.addScaledVector(pd, 0.3).normalize(), 20 + rr() * 60, Math.min(rs[i] * 0.45, 1.2), 0.08, 1, b[i] + 0.05, 60, false); } }
+  const cols = [0x4f3626, 0x5d4230, 0x8c6c4c, 0xd2bf9c], RADS = [20, 10, 6, 4];
+  orders.forEach((L, o) => {
+    const mat = barkMat(cols[o], o < 2 ? 0.2 : 0.05, false); treeRootMats.push(mat);
+    const m = new THREE.Mesh(mergeTubes(L, RADS[o]), mat); m.castShadow = o < 2; m.frustumCulled = false; scene.add(m); crownMeshes.push(m);
+  });
+}
+
+/* ---------------- CT soil core ---------------- */
+const coreU = {uOp:{value:1}, uScan:{value:0}, uCam:{value:new V3()}};
+const coreMat = new THREE.ShaderMaterial({
+  uniforms:coreU, transparent:true, depthWrite:false, side:THREE.DoubleSide,
+  vertexShader:`#include <common>
+  #include <logdepthbuf_pars_vertex>
+  varying vec3 vW; varying vec3 vN;
+  void main(){ vW = (modelMatrix * vec4(position, 1.0)).xyz; vN = normalize(mat3(modelMatrix) * normal);
+    gl_Position = projectionMatrix * viewMatrix * vec4(vW, 1.0);
+    #include <logdepthbuf_vertex>
+  }`,
+  fragmentShader:`#include <common>
+  #include <logdepthbuf_pars_fragment>
+  uniform float uOp; uniform float uScan; uniform vec3 uCam; varying vec3 vW; varying vec3 vN;
+  float h3(vec3 p){ return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+  float vn(vec3 p){ vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(mix(h3(i), h3(i + vec3(1,0,0)), f.x), mix(h3(i + vec3(0,1,0)), h3(i + vec3(1,1,0)), f.x), f.y),
+               mix(mix(h3(i + vec3(0,0,1)), h3(i + vec3(1,0,1)), f.x), mix(h3(i + vec3(0,1,1)), h3(i + vec3(1,1,1)), f.x), f.y), f.z); }
+  void main(){
+    #include <logdepthbuf_fragment>
+    float n = vn(vW * 0.045) * 0.6 + vn(vW * 0.16) * 0.4;
+    float fr = pow(1.0 - abs(dot(normalize(uCam - vW), vN)), 2.0);
+    float scan = smoothstep(1.5, 0.0, abs(vW.y - uScan));
+    vec3 col = mix(vec3(0.10, 0.14, 0.19), vec3(0.42, 0.55, 0.66), n) * (0.45 + 0.8 * fr) + vec3(0.35, 0.8, 1.0) * scan;
+    float a = uOp * (0.07 + 0.22 * fr + 0.12 * n + 0.5 * scan);
+    gl_FragColor = vec4(col, a);
+    #include <encodings_fragment>
+  }`
+});
+const core = new THREE.Mesh(new THREE.BoxGeometry(780, 180, 780), coreMat); core.position.set(-80, -90, -50); core.renderOrder = 5; scene.add(core);
+const coreEdges = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(780, 180, 780)), new THREE.LineBasicMaterial({color:0x6fb2d6, transparent:true, opacity:0.5}));
+coreEdges.position.copy(core.position); scene.add(coreEdges);
+
+/* ---------------- close-up: sand grains + root hairs ---------------- */
+const S = (() => { const d0 = new V3(Math.sin(0.95), 0.32, Math.cos(0.95)).normalize(); return d0.sub(T.clone().multiplyScalar(d0.dot(T))).normalize(); })();
+const UPV = new V3().crossVectors(T, S).normalize();
+const heroNear = heroPts.filter((_, i) => Math.abs(i - pIdx) < 90);
+function distHero(p){ let m = 1e9; for (const q of heroNear){ const d = p.distanceToSquared(q); if (d < m) m = d; } return Math.sqrt(m); }
+const revealU = {value:0};
+const cutU = {c:{value:new V3(1e6, 1e6, 1e6)}, p:{value:new V3()}, t:{value:new V3(0, 1, 0)}, r:{value:0}};
+function dissolve(m){
+  m.onBeforeCompile = sh => {
+    sh.uniforms.uReveal = revealU;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vH;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvH = fract(sin(float(gl_InstanceID) * 12.9898) * 43758.5453);');
+    sh.uniforms.uCutC = cutU.c; sh.uniforms.uAxP = cutU.p; sh.uniforms.uAxT = cutU.t; sh.uniforms.uTun = cutU.r;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform vec3 uCutC; uniform vec3 uAxP; uniform vec3 uAxT; uniform float uTun; varying float vGone;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n{ vec3 cw = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz; vec3 rel = cw - uAxP; float along = dot(rel, uAxT); float rad = length(rel - uAxT * along); vGone = (dot(cw - uCutC, uAxT) > 0.0 && rad < uTun) ? 1.0 : 0.0; }');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vH;\nvarying float vGone;\nuniform float uReveal;').replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\nif (vH > uReveal || vGone > 0.5) discard;');
+  };
+  return m;
+}
+const grainGeo = (() => { const g = new THREE.IcosahedronGeometry(1, 2); const p = g.attributes.position; const rr = rng(9);
+  const v = new V3(); const noise = []; for (let k = 0; k < 6; k++) noise.push([new V3(rr() - 0.5, rr() - 0.5, rr() - 0.5).normalize(), rr() * 0.12]);
+  for (let i = 0; i < p.count; i++){ v.fromBufferAttribute(p, i).normalize(); let s = 1; for (const [a, w] of noise) s += Math.pow(Math.max(0, v.dot(a)), 3) * w * 2 - w * 0.4; p.setXYZ(i, v.x * s, v.y * s, v.z * s); }
+  g.computeVertexNormals(); return g; })();
+const grainMat = dissolve(new THREE.MeshStandardMaterial({roughness:0.86, metalness:0}));
+const grainList = [];
+const NG = 42000, grains = new THREE.InstancedMesh(grainGeo, grainMat, NG);
+grains.frustumCulled = false; grains.receiveShadow = true;
+{
+  const rr = rng(13), m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), sc = new V3(), p = new V3(), col = new THREE.Color();
+  const pal = [[0.58, 0.51, 0.40], [0.54, 0.43, 0.34], [0.47, 0.38, 0.27], [0.24, 0.21, 0.19], [0.20, 0.14, 0.10], [0.74, 0.70, 0.62]];
+  let n = 0, tries = 0;
+  while (n < NG && tries < NG * 8){
+    tries++;
+    p.set(rr() * 2 - 1, rr() * 2 - 1, rr() * 2 - 1); if (p.lengthSq() > 1) continue; p.multiplyScalar(0.85).add(P);
+    const r = 0.005 + Math.pow(rr(), 2.4) * 0.026;
+    if (p.clone().sub(P).dot(S) > RW * 0.35 + r * 0.5) continue;
+    if (distHero(p) < RW + r * 0.9) continue;
+    e.set(rr() * 6, rr() * 6, rr() * 6); q.setFromEuler(e); sc.set(r * (0.85 + rr() * 0.3), r * (0.75 + rr() * 0.3), r * (0.85 + rr() * 0.3));
+    m.compose(p, q, sc); grains.setMatrixAt(n, m); grainList.push([p.x, p.y, p.z, r]);
+    const k = rr(), c = pal[k < 0.42 ? 0 : k < 0.62 ? 1 : k < 0.78 ? 2 : k < 0.88 ? 3 : k < 0.95 ? 4 : 5]; const v = 0.9 + rr() * 0.2;
+    col.setRGB(c[0] * v, c[1] * v, c[2] * v); grains.setColorAt(n, col); n++;
+  }
+  grains.count = n;
+}
+scene.add(grains);
+
+const hairMat = new THREE.MeshStandardMaterial({color:0xece7d8, roughness:0.38, transparent:true, opacity:0, emissive:0x1c1b16, clippingPlanes:[cutPlane], side:THREE.DoubleSide});
+const hairs = (() => {
+  const rr = rng(17), pos = [], nor = [], idx = [], RAD = 5, SEG = 8, s0 = hero.tb.frames[pIdx].s;
+  const n1 = new V3(), n2 = new V3(), c = new V3(), d = new V3(); let vb = 0;
+  for (let i = 0; i < 1500; i++){
+    const s = s0 - 0.42 + rr() * 0.52, fi = Math.max(0, hero.tb.frames.findIndex(f => f.s >= s)), F = hero.tb.frames[fi];
+    const th = rr() * TAU, dir = F.N.clone().multiplyScalar(Math.cos(th)).addScaledVector(F.B, Math.sin(th));
+    const base = heroPts[fi].clone().addScaledVector(dir, hero.radii[fi] * 0.95);
+    const d2 = dir.clone().addScaledVector(F.T, -0.25 + rr() * 0.2).add(new V3(rr() - 0.5, rr() - 0.5, rr() - 0.5).multiplyScalar(0.35)).normalize();
+    const len = Math.max(0.004, 0.015 + Math.pow(rr(), 1.2) * 0.05 * ss(s0 + 0.1, s0 - 0.3, s));
+    const bend = new V3(rr() - 0.5, rr() - 0.5, rr() - 0.5).cross(d2).normalize().multiplyScalar(len * (0.15 + rr() * 0.4));
+    n1.copy(Math.abs(d2.y) < 0.9 ? new V3(0, 1, 0) : new V3(1, 0, 0)).cross(d2).normalize(); n2.crossVectors(d2, n1);
+    for (let k = 0; k <= SEG; k++){
+      const u = k / SEG, rad = 0.00048 * (k === SEG ? 0.55 : 1);
+      c.copy(base).addScaledVector(d2, len * u).addScaledVector(bend, u * u);
+      for (let j = 0; j < RAD; j++){ const a = j / RAD * TAU; d.copy(n1).multiplyScalar(Math.cos(a)).addScaledVector(n2, Math.sin(a)); pos.push(c.x + d.x * rad, c.y + d.y * rad, c.z + d.z * rad); nor.push(d.x, d.y, d.z); }
+    }
+    for (let k = 0; k < SEG; k++) for (let j = 0; j < RAD; j++){ const a = vb + k * RAD + j, b = vb + k * RAD + (j + 1) % RAD; idx.push(a, a + RAD, b, b, a + RAD, b + RAD); }
+    vb += (SEG + 1) * RAD;
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setIndex(idx);
+  const m = new THREE.Mesh(g, hairMat); m.frustumCulled = false; return m;
+})();
+scene.add(hairs);
+
+/* capillary water bridges: grain–grain and grain–root contacts (soil near field capacity) */
+const bridgeGeo = (() => { const pts = []; for (let k = 0; k <= 12; k++){ const u = k / 12; pts.push(new THREE.Vector2(1 - 0.58 * Math.sin(u * Math.PI), u)); } return new THREE.LatheGeometry(pts, 14); })();
+const bridgeMat = dissolve(new THREE.MeshPhysicalMaterial({color:0x9fd8f2, roughness:0.05, metalness:0, transparent:true, opacity:0, depthWrite:false, emissive:0x08304a, clearcoat:1, clearcoatRoughness:0.05}));
+const NBM = 14000, bridges = new THREE.InstancedMesh(bridgeGeo, bridgeMat, NBM); bridges.frustumCulled = false; bridges.renderOrder = 2;
+{
+  const cell = 0.07, map = new Map(), key = (x, y, z) => x + ',' + y + ',' + z;
+  grainList.forEach((g, i) => { const k = key(Math.floor(g[0] / cell), Math.floor(g[1] / cell), Math.floor(g[2] / cell)); if (!map.has(k)) map.set(k, []); map.get(k).push(i); });
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new V3(0, 1, 0), A = new V3(), B = new V3(), D = new V3(); let n = 0;
+  const put = (ax, ay, az, ra, bx, by, bz, rb) => {
+    D.set(bx - ax, by - ay, bz - az); const dist = D.length(); D.multiplyScalar(1 / dist);
+    A.set(ax, ay, az).addScaledVector(D, ra * 0.72); B.set(bx, by, bz).addScaledVector(D, -rb * 0.72);
+    const L = A.distanceTo(B), rad = Math.min(ra, rb) * 0.42; if (L < 1e-5) return;
+    q.setFromUnitVectors(up, D); m.compose(A, q, new V3(rad, L, rad)); bridges.setMatrixAt(n++, m);
+  };
+  for (let i = 0; i < grainList.length && n < NBM; i++){
+    const g = grainList[i], cx = Math.floor(g[0] / cell), cy = Math.floor(g[1] / cell), cz = Math.floor(g[2] / cell);
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++){
+      const lst = map.get(key(cx + dx, cy + dy, cz + dz)); if (!lst) continue;
+      for (const j of lst){ if (j <= i || n >= NBM) continue; const h = grainList[j], dd = Math.hypot(h[0] - g[0], h[1] - g[1], h[2] - g[2]), gap = dd - g[3] - h[3], mn = Math.min(g[3], h[3]);
+        if (gap > mn * 0.32 || gap < -mn * 0.5) continue; put(g[0], g[1], g[2], g[3], h[0], h[1], h[2], h[3]); }
+    }
+    let best = 1e9, bq = null; for (const qq of heroNear){ const dq = (qq.x - g[0]) ** 2 + (qq.y - g[1]) ** 2 + (qq.z - g[2]) ** 2; if (dq < best){ best = dq; bq = qq; } }
+    const gapR = Math.sqrt(best) - RW - g[3];
+    if (gapR < g[3] * 0.4 && n < NBM){ const dd = Math.sqrt(best); put(g[0], g[1], g[2], g[3], g[0] + (bq.x - g[0]) * (dd - RW) / dd * 1.3, g[1] + (bq.y - g[1]) * (dd - RW) / dd * 1.3, g[2] + (bq.z - g[2]) * (dd - RW) / dd * 1.3, g[3] * 0.6); }
+  }
+  bridges.count = n;
+}
+scene.add(bridges);
+
+/* water parcels converging on the root: line-sink flow, r(t)^2 = r0^2 - 2kt, so speed = k / r */
+const NW = 24000;
+const waterU = {uTime:{value:0}, uP:{value:P.clone()}, uAx:{value:T.clone()}, uN:{value:PF.N.clone()}, uB:{value:PF.B.clone()}, uRw:{value:RW}, uK:{value:0.016}, uOp:{value:0}, uScale:{value:500}, uSize:{value:0.0028}};
+const waterPts = (() => {
+  const rr = rng(29), aP = new Float32Array(NW * 4), pos = new Float32Array(NW * 3);
+  for (let i = 0; i < NW; i++){
+    let th, dv; do { th = rr() * TAU; dv = PF.N.clone().multiplyScalar(Math.cos(th)).addScaledVector(PF.B, Math.sin(th)); } while (dv.dot(S) > 0.25);
+    aP[i * 4] = -0.5 + rr() * 0.72; aP[i * 4 + 1] = th; aP[i * 4 + 2] = RW + 0.015 + Math.sqrt(rr()) * 0.5; aP[i * 4 + 3] = rr();
+    pos[i * 3] = P.x; pos[i * 3 + 1] = P.y; pos[i * 3 + 2] = P.z;
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('aP', new THREE.BufferAttribute(aP, 4));
+  const m = new THREE.ShaderMaterial({uniforms:waterU, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
+    vertexShader:`#include <common>
+    #include <logdepthbuf_pars_vertex>
+    attribute vec4 aP; uniform float uTime, uRw, uK, uScale, uSize; uniform vec3 uP, uAx, uN, uB; varying float vA;
+    void main(){
+      float dur = (aP.z * aP.z - uRw * uRw) / (2.0 * uK);
+      float ph = fract(uTime / dur + aP.w);
+      float r = sqrt(max(aP.z * aP.z - 2.0 * uK * ph * dur, uRw * uRw));
+      vec3 p = uP + uAx * aP.x + (uN * cos(aP.y) + uB * sin(aP.y)) * r;
+      vec4 mv = viewMatrix * vec4(p, 1.0); gl_Position = projectionMatrix * mv;
+      gl_PointSize = clamp(uSize * uScale / -mv.z, 1.0, 48.0);
+      vA = smoothstep(0.0, 0.06, ph) * smoothstep(1.0, 0.93, ph);
+      #include <logdepthbuf_vertex>
+    }`,
+    fragmentShader:`#include <common>
+    #include <logdepthbuf_pars_fragment>
+    uniform float uOp; varying float vA;
+    void main(){
+      #include <logdepthbuf_fragment>
+      float d = length(gl_PointCoord - 0.5); if (d > 0.5) discard;
+      float core = smoothstep(0.5, 0.0, d);
+      vec3 col = mix(vec3(0.05, 0.42, 0.85), vec3(0.7, 0.95, 1.0), core * core);
+      gl_FragColor = vec4(col * core * 1.05 * vA * uOp, 1.0);
+      #include <encodings_fragment>
+    }`});
+  const pts = new THREE.Points(g, m); pts.frustumCulled = false; pts.renderOrder = 3; return pts;
+})();
+scene.add(waterPts);
+
+/* ---------------- soil water: Young–Laplace + van Genuchten–Mualem (loam, Carsel & Parrish 1988) ---------------- */
+const VG = {a:0.036, n:1.56};
+function vgAt(psi){ const h = Math.abs(psi) * 10197.2, m = 1 - 1 / VG.n; const Se = Math.pow(1 + Math.pow(VG.a * h, VG.n), -m); const K = Math.sqrt(Se) * Math.pow(1 - Math.pow(1 - Math.pow(Se, 1 / m), m), 2); return {Se, K}; }
+const FC = vgAt(-0.033);
+const wetU = {neck:{value:1}, keep:{value:1}};
+const soilW = {psi:-0.033, flow:1, op:1};
+function setPsi(psi){
+  soilW.psi = psi; const v = vgAt(psi), rPore = 0.1456 / Math.abs(psi);
+  soilW.rPore = rPore; soilW.Se = v.Se; soilW.Krel = v.K / FC.K;
+  wetU.neck.value = clamp((Math.log10(rPore) + 1) / (Math.log10(4.41) + 1), 0, 1.15);
+  wetU.keep.value = clamp(v.Se / FC.Se, 0, 1);
+  soilW.flow = clamp(Math.pow(soilW.Krel, 0.25), 0.03, 2.2);
+  soilW.op = clamp(Math.sqrt(v.Se / FC.Se), 0.15, 1.2);
+}
+setPsi(-0.033);
+{ const prev = bridgeMat.onBeforeCompile; bridgeMat.onBeforeCompile = (sh, r) => { prev(sh, r);
+  sh.uniforms.uNeck = wetU.neck; sh.uniforms.uKeep = wetU.keep;
+  sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uNeck;').replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed.xz *= uNeck;');
+  sh.fragmentShader = sh.fragmentShader.replace('uniform float uReveal;', 'uniform float uReveal;\nuniform float uKeep;').replace('if (vH > uReveal', 'if (vH > uKeep || vH > uReveal'); }; }
+
+/* ---------------- arbuscular mycorrhizal hyphae along the soil–glass interface ---------------- */
+const dotTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.35, 'rgba(255,255,255,0.75)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+const myc = (() => {
+  const rr = rng(41), paths = [], entries = [], T5 = 33.0, plane = 0.027;
+  const walkH = (start, dir, len, t0, depth) => {
+    const pts = [start.clone()], ts = [t0], d = dir.clone(), p = start.clone(), step = 0.005; let tt = t0;
+    for (let k = 0; k < len / step; k++){
+      d.add(new V3(rr() - 0.5, rr() - 0.5, rr() - 0.5).multiplyScalar(0.32));
+      const rel = p.clone().sub(P); d.addScaledVector(S, (plane - rel.dot(S)) * 6); d.normalize();
+      if (distHero(p) < RW + 0.003 && k > 2){ const away = p.clone().sub(heroNear.reduce((b, q) => q.distanceToSquared(p) < b.distanceToSquared(p) ? q : b)); d.addScaledVector(away.normalize(), 0.8).normalize(); }
+      p.addScaledVector(d, step); tt += step / (depth ? 0.075 : 0.11); pts.push(p.clone()); ts.push(tt);
+      if (rel.length() > 0.75) break;
+      if (depth < 2 && k > 5 && rr() < 0.065){ const bd = d.clone().add(new V3(rr() - 0.5, rr() - 0.5, rr() - 0.5).multiplyScalar(1.5)); bd.addScaledVector(S, -bd.dot(S)).normalize(); walkH(p.clone(), bd, len * (0.3 + rr() * 0.35), tt, depth + 1); }
+    }
+    if (pts.length > 3) paths.push({pts, ts, depth});
+  };
+  for (let i = 0; i < 30; i++){
+    const s = hero.tb.frames[pIdx].s - 0.62 + rr() * 0.74, fi = Math.max(0, hero.tb.frames.findIndex(f => f.s >= s)), F = hero.tb.frames[fi];
+    let th, dir, tries = 0; do { th = rr() * TAU; dir = F.N.clone().multiplyScalar(Math.cos(th)).addScaledVector(F.B, Math.sin(th)); tries++; } while ((dir.dot(S) < 0.35 || dir.dot(S) > 0.85) && tries < 60);
+    const base = heroPts[fi].clone().addScaledVector(dir, hero.radii[fi] * 1.02);
+    const t0 = T5 + rr() * 1.8; entries.push({p:base, n:dir.clone(), t:t0});
+    walkH(base, dir.clone().addScaledVector(F.T, (rr() - 0.5) * 1.2).normalize(), 0.3 + rr() * 0.45, t0, 0);
+  }
+  const pos = [], nor = [], birth = [], idx = []; const RAD = 5; let vb = 0; const n1 = new V3(), n2 = new V3(), tg = new V3(), d = new V3();
+  for (const P_ of paths){
+    const rad = [0.0005, 0.00038, 0.0003][P_.depth], n = P_.pts.length;
+    for (let k = 0; k < n; k++){
+      tg.copy(P_.pts[Math.min(n - 1, k + 1)]).sub(P_.pts[Math.max(0, k - 1)]).normalize();
+      n1.copy(Math.abs(tg.y) < 0.9 ? new V3(0, 1, 0) : new V3(1, 0, 0)).cross(tg).normalize(); n2.crossVectors(tg, n1);
+      for (let j = 0; j < RAD; j++){ const a = j / RAD * TAU; d.copy(n1).multiplyScalar(Math.cos(a)).addScaledVector(n2, Math.sin(a)); const q = P_.pts[k]; pos.push(q.x + d.x * rad, q.y + d.y * rad, q.z + d.z * rad); nor.push(d.x, d.y, d.z); birth.push(P_.ts[k]); }
+    }
+    for (let k = 0; k < n - 1; k++) for (let j = 0; j < RAD; j++){ const a = vb + k * RAD + j, b = vb + k * RAD + (j + 1) % RAD; idx.push(a, b, a + RAD, b, b + RAD, a + RAD); }
+    vb += n * RAD;
+  }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); geo.setAttribute('aBirth', new THREE.Float32BufferAttribute(birth, 1)); geo.setIndex(idx);
+  const growU = {value:0};
+  const mat = new THREE.MeshStandardMaterial({color:0x1a36c4, roughness:0.35, emissive:0x1c3cff, emissiveIntensity:0.45, side:THREE.DoubleSide});
+  mat.onBeforeCompile = sh => { sh.uniforms.uGrow = growU;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aBirth;\nvarying float vBirth;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvBirth = aBirth;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vBirth;\nuniform float uGrow;').replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\nif (vBirth > uGrow) discard;'); };
+  const mesh = new THREE.Mesh(geo, mat); mesh.frustumCulled = false; mesh.visible = false; scene.add(mesh);
+  /* spores at some branch tips (AM spores are 40–800 µm; here 90–180 µm) */
+  const sp = paths.filter(q => q.depth > 0 && rr() < 0.4).map(q => ({p:q.pts[q.pts.length - 1].clone(), t:q.ts[q.ts.length - 1], r:0.0045 + rr() * 0.0045}));
+  const sporeMat = new THREE.MeshPhysicalMaterial({color:0xd8a948, roughness:0.3, clearcoat:0.8, clearcoatRoughness:0.2, sheen:0.4, emissive:0x2a1800});
+  const spores = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 28, 20), sporeMat, Math.max(1, sp.length)); spores.frustumCulled = false; spores.visible = false; spores.castShadow = true; scene.add(spores);
+  const hypo = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 16, 12), mat.clone(), entries.length); hypo.frustumCulled = false; hypo.visible = false; scene.add(hypo);
+  /* nutrient traffic: phosphate in (violet), carbon out (gold) */
+  const lens = paths.map(q => q.pts.length), tot = lens.reduce((a, b) => a + b, 0), NP = 1800, NC = 600;
+  const pick = u => { let acc = 0, x = u * tot; for (let i = 0; i < paths.length; i++){ acc += lens[i]; if (x < acc) return i; } return paths.length - 1; };
+  const parts = []; for (let i = 0; i < NP + NC; i++) parts.push({path:pick(rr()), u0:rr(), sp:0.5 + rr() * 0.6, c:i >= NP});
+  const pg = new THREE.BufferGeometry(), pp = new Float32Array((NP + NC) * 3), pc = new Float32Array((NP + NC) * 3);
+  parts.forEach((q, i) => { const col = q.c ? [1.0, 0.62, 0.05] : [0.55, 0.18, 0.95]; pc.set(col, i * 3); });
+  pg.setAttribute('position', new THREE.BufferAttribute(pp, 3)); pg.setAttribute('aCol', new THREE.BufferAttribute(pc, 3));
+  const ptU = {uOp:{value:0}, uScale:waterU.uScale, uSize:{value:0.0055}};
+  const pts = new THREE.Points(pg, new THREE.ShaderMaterial({uniforms:ptU, transparent:true, depthWrite:false,
+    vertexShader:`#include <common>
+    #include <logdepthbuf_pars_vertex>
+    attribute vec3 aCol; uniform float uScale, uSize; varying vec3 vC;
+    void main(){ vC = aCol; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv; gl_PointSize = clamp(uSize * uScale / -mv.z, 2.0, 40.0);
+    #include <logdepthbuf_vertex>
+    }`,
+    fragmentShader:`#include <common>
+    #include <logdepthbuf_pars_fragment>
+    uniform float uOp; varying vec3 vC;
+    void main(){
+      #include <logdepthbuf_fragment>
+      float d = length(gl_PointCoord - 0.5); if (d > 0.5) discard;
+      float a = smoothstep(0.5, 0.28, d); vec3 col = mix(vC, vec3(1.0), smoothstep(0.22, 0.0, d) * 0.55);
+      gl_FragColor = vec4(col, a * uOp);
+      #include <encodings_fragment>
+    }`}));
+  pts.frustumCulled = false; pts.visible = false; scene.add(pts);
+  const m4 = new THREE.Matrix4(), q4 = new THREE.Quaternion(), up = new V3(0, 1, 0);
+  function update(t){
+    const on = t >= 32 && t < 44; mesh.visible = spores.visible = hypo.visible = pts.visible = on; if (!on) return;
+    growU.value = t;
+    sp.forEach((s, i) => { const g = ss(s.t, s.t + 1.2, t); m4.compose(s.p, q4.identity(), new V3(1, 1, 1).multiplyScalar(Math.max(1e-6, s.r * g))); spores.setMatrixAt(i, m4); });
+    spores.instanceMatrix.needsUpdate = true;
+    entries.forEach((e, i) => { const g = ss(e.t - 0.2, e.t + 0.4, t); q4.setFromUnitVectors(up, e.n); m4.compose(e.p, q4, new V3(0.0012 * g + 1e-6, 0.0006 * g + 1e-6, 0.0012 * g + 1e-6)); hypo.setMatrixAt(i, m4); });
+    hypo.instanceMatrix.needsUpdate = true;
+    const a = ss(35, 36.5, t);
+    parts.forEach((q, i) => {
+      const P_ = paths[q.path], n = P_.pts.length; let f = (q.u0 + (t - 35) * q.sp * 0.08 / (n * 0.005)) % 1; if (!q.c) f = 1 - f;
+      const x = f * (n - 1), k = Math.floor(x), u = x - k, A = P_.pts[k], B = P_.pts[Math.min(n - 1, k + 1)];
+      const grown = P_.ts[k] <= t && a > 0;
+      if (grown){ pp[i * 3] = A.x + (B.x - A.x) * u; pp[i * 3 + 1] = A.y + (B.y - A.y) * u; pp[i * 3 + 2] = A.z + (B.z - A.z) * u; }
+      else { pp[i * 3] = 1e4; pp[i * 3 + 1] = 1e4; pp[i * 3 + 2] = 1e4; }
+    });
+    pg.attributes.position.needsUpdate = true; ptU.uOp.value = a;
+  }
+  const mid = paths.find(q => q.depth === 0 && q.pts.length > 40) || paths[0];
+  return {update, anchors:{spore:sp.length ? sp[0].p : P, hypha:mid.pts[Math.floor(mid.pts.length * 0.6)], entry:entries[0].p}};
+})();
+
+/* ---------------- shot 6: inside the cortex (longitudinal cutaway) ---------------- */
+function mergeTubes(list, RAD){
+  const pos = [], nor = [], birth = [], idx = [], uvs = []; let vb = 0; const n1 = new V3(), n2 = new V3(), tg = new V3(), d = new V3();
+  for (const L of list){
+    const n = L.pts.length; if (n < 2) continue; let arc = 0;
+    for (let k = 0; k < n; k++){
+      if (k) arc += L.pts[k].distanceTo(L.pts[k - 1]);
+      tg.copy(L.pts[Math.min(n - 1, k + 1)]).sub(L.pts[Math.max(0, k - 1)]).normalize();
+      n1.copy(Math.abs(tg.y) < 0.9 ? new V3(0, 1, 0) : new V3(1, 0, 0)).cross(tg).normalize(); n2.crossVectors(tg, n1);
+      const rad = L.rs ? L.rs[k] : L.r * (1 - (L.taper || 0) * k / (n - 1)), q = L.pts[k];
+      for (let j = 0; j < RAD; j++){ const a = j / RAD * TAU; d.copy(n1).multiplyScalar(Math.cos(a)).addScaledVector(n2, Math.sin(a)); pos.push(q.x + d.x * rad, q.y + d.y * rad, q.z + d.z * rad); nor.push(d.x, d.y, d.z); birth.push(L.b[k]); uvs.push(j / RAD, arc); }
+    }
+    for (let k = 0; k < n - 1; k++) for (let j = 0; j < RAD; j++){ const a = vb + k * RAD + j, b = vb + k * RAD + (j + 1) % RAD; idx.push(a, b, a + RAD, b, b + RAD, a + RAD); }
+    vb += n * RAD;
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('aBirth', new THREE.Float32BufferAttribute(birth, 1)); g.setAttribute('aUV', new THREE.Float32BufferAttribute(uvs, 2)); g.setIndex(idx); return g;
+}
+function growMat(params, growU){
+  const m = new THREE.MeshStandardMaterial(Object.assign({roughness:0.4, side:THREE.DoubleSide, clippingPlanes:[cutPlane]}, params));
+  m.onBeforeCompile = sh => { sh.uniforms.uGrow = growU;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aBirth;\nvarying float vBirth;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvBirth = aBirth;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vBirth;\nuniform float uGrow;').replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\nif (vBirth > uGrow) discard;'); };
+  return m;
+}
+const cortex = (() => {
+  const grp = new THREE.Group(); grp.visible = false; scene.add(grp);
+  const rr = rng(61), fr = hero.tb.frames, s0 = fr[pIdx].s, L6 = 0.22, growU = {value:0};
+  const fAt = s => {
+    const ss_ = s0 + s; let i = 0; while (i < fr.length - 2 && fr[i + 1].s < ss_) i++;
+    const a = fr[i], b = fr[i + 1], u = clamp((ss_ - a.s) / (b.s - a.s));
+    return {p:heroPts[i].clone().lerp(heroPts[i + 1], u), N:a.N.clone().lerp(b.N, u).normalize(), B:a.B.clone().lerp(b.B, u).normalize(), T:a.T.clone().lerp(b.T, u).normalize()};
+  };
+  const radial = (F, th) => F.N.clone().multiplyScalar(Math.cos(th)).addScaledVector(F.B, Math.sin(th));
+  const visible = (pt, pad) => pt.clone().sub(P).dot(S) <= pad;
+  const layers = [
+    {k:'ep', r:0.0233, cr:0.0013, cl:0.011, col:[0.52, 0.76, 0.56]},
+    {k:'cx', r:0.0203, cr:0.0019, cl:0.012, col:[0.60, 0.80, 0.60]},
+    {k:'cx', r:0.0166, cr:0.0019, cl:0.012, col:[0.60, 0.80, 0.60]},
+    {k:'cx', r:0.0130, cr:0.0018, cl:0.012, col:[0.58, 0.79, 0.59]},
+    {k:'cx4', r:0.0098, cr:0.0016, cl:0.011, col:[0.56, 0.78, 0.58]},
+    {k:'en', r:0.0074, cr:0.00085, cl:0.010, col:[0.62, 0.70, 0.50]},
+    {k:'pe', r:0.0060, cr:0.0006, cl:0.008, col:[0.66, 0.70, 0.78]}
+  ];
+  const F0 = fAt(0), thU = Math.atan2(UPV.dot(F0.B), UPV.dot(F0.N)); const hyTh = [thU - 0.13, thU + 0.11, thU + Math.PI - 0.12, thU + Math.PI + 0.13, thU - 0.6, thU + Math.PI + 0.6];
+  const cells = [], arbCells = [], m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new V3(0, 1, 0);
+  for (const L of layers){
+    const n = Math.floor(TAU * L.r / (2 * L.cr * 1.04)), ph = rr() * TAU;
+    for (let j = 0; j < n; j++){
+      const th = ph + j / n * TAU, off = (j % 2) * L.cl * 0.5 + rr() * L.cl * 0.2;
+      for (let s = -L6 + off; s < L6; s += L.cl * (0.95 + rr() * 0.1)){
+        const F = fAt(s), dir = radial(F, th), c = F.p.clone().addScaledVector(dir, L.r);
+        if (!visible(c, L.cr * 1.25)) continue;
+        const cell = {c, dir, F, L, th, s, arb:false};
+        if (L.k === 'cx4' && s > -0.06 && s < 0.1 && Math.abs(c.clone().sub(P).dot(S)) < L.cr * 0.95 && rr() < 0.9){ cell.arb = true; arbCells.push(cell); }
+        cells.push(cell);
+      }
+    }
+  }
+  const capGeo = new THREE.CapsuleGeometry(1, 2, 8, 24);
+  /* irregular, faceted cells with flattened end walls: the same per-cell deformation is applied to every shell */
+  const deform = m => { m.onBeforeCompile = sh => {
+    sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+    { float id = float(gl_InstanceID); float h1 = fract(sin(id * 12.9898) * 43758.5453), h2 = fract(sin(id * 78.233) * 12345.678), h3 = fract(sin(id * 39.425) * 24634.6345);
+      float ang = atan(position.z, position.x);
+      float k = 1.0 + 0.085 * cos(5.0 * ang + h1 * 6.283) + 0.05 * cos(3.0 * ang + h2 * 6.283) + 0.035 * sin(position.y * 1.9 + h3 * 9.0);
+      transformed.xz *= k;
+      float cap = 1.55 + 0.35 * h1; transformed.y = sign(transformed.y) * min(abs(transformed.y), cap + (abs(transformed.y) > cap ? (abs(transformed.y) - cap) * 0.25 : 0.0));
+      transformed.x += (h3 - 0.5) * 0.12 * transformed.y; }`); }; return m; };
+  const wallMat = deform(new THREE.MeshStandardMaterial({roughness:0.55, clippingPlanes:[cutPlane]}));
+  const wallIn = deform(new THREE.MeshStandardMaterial({color:0x4f9a6a, roughness:0.7, side:THREE.BackSide, clippingPlanes:[cutPlane], emissive:0x0a1a10}));
+  const lumMat = deform(new THREE.MeshStandardMaterial({color:0xece4f0, roughness:0.8, side:THREE.BackSide, clippingPlanes:[cutPlane], emissive:0x14101a, emissiveIntensity:0.5}));
+  const cFront = new THREE.InstancedMesh(capGeo, wallMat, cells.length), cWall = new THREE.InstancedMesh(capGeo, wallIn, cells.length), cBack = new THREE.InstancedMesh(capGeo, lumMat, cells.length);
+  cFront.frustumCulled = cBack.frustumCulled = cWall.frustumCulled = false;
+  const col = new THREE.Color();
+  cells.forEach((c, i) => {
+    q.setFromUnitVectors(up, c.F.T); const j = 0.92 + rr() * 0.12;
+    const ly = c.L.cl / 4 * (0.95 + rr() * 0.08); m4.compose(c.c, q, new V3(c.L.cr * j, ly, c.L.cr * j)); cFront.setMatrixAt(i, m4); cWall.setMatrixAt(i, m4);
+    const wt = c.L.k === 'en' || c.L.k === 'pe' ? 0.86 : 0.9; m4.compose(c.c, q, new V3(c.L.cr * j * wt, ly * (1 - (1 - wt) * 0.4), c.L.cr * j * wt)); cBack.setMatrixAt(i, m4);
+    const v = 0.94 + rr() * 0.1; col.setRGB(c.L.col[0] * v, c.L.col[1] * v, c.L.col[2] * v); cFront.setColorAt(i, col);
+  });
+  grp.add(cFront, cWall, cBack);
+  /* nuclei and starch grains (arbuscule hosts: central, enlarged nucleus; starch depleted) */
+  const nucMat = new THREE.MeshStandardMaterial({color:0x7a3a8a, roughness:0.4, emissive:0x2a0c30, clippingPlanes:[cutPlane]});
+  const nuc = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 14, 10), nucMat, cells.length); nuc.frustumCulled = false;
+  const amyList = [];
+  cells.forEach((c, i) => {
+    const back = S.clone().negate();
+    const pnt = c.arb ? c.c.clone().addScaledVector(back, c.L.cr * 0.2) : c.c.clone().addScaledVector(back, c.L.cr * 0.5).addScaledVector(c.F.T, (rr() - 0.5) * c.L.cl * 0.35);
+    const r = c.L.cr * (c.arb ? 0.4 : 0.3);
+    m4.compose(pnt, q.identity(), new V3(r, r * 0.86, r)); nuc.setMatrixAt(i, m4);
+    if (!c.arb && c.L.k.startsWith('cx')) for (let k = 0; k < 4; k++) amyList.push(c.c.clone().addScaledVector(back, c.L.cr * (0.45 + rr() * 0.35)).addScaledVector(c.F.T, (rr() - 0.5) * c.L.cl * 0.5).addScaledVector(c.dir, (rr() - 0.5) * c.L.cr * 0.8));
+  });
+  const amy = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshStandardMaterial({color:0xd9b25c, roughness:0.3, emissive:0x2a1a00, clippingPlanes:[cutPlane]}), amyList.length); amy.frustumCulled = false;
+  amyList.forEach((p_, i) => { const r = 0.0003 + rr() * 0.00018; m4.compose(p_, q.identity(), new V3(r, r * 0.8, r)); amy.setMatrixAt(i, m4); });
+  grp.add(nuc, amy);
+  /* Casparian strips: a lignified belt around every endodermal cell, mid-way through its anticlinal walls */
+  const enCells = cells.filter(c => c.L.k === 'en');
+  const casp = new THREE.InstancedMesh(new THREE.TorusGeometry(1, 0.07, 6, 32), new THREE.MeshStandardMaterial({color:0xc23a2e, roughness:0.4, emissive:0x3a0806, clippingPlanes:[cutPlane]}), enCells.length); casp.frustumCulled = false;
+  enCells.forEach((c, i) => { const x = new V3().crossVectors(c.F.T, c.dir).normalize(), basis = new THREE.Matrix4().makeBasis(x, c.F.T, c.dir); q.setFromRotationMatrix(basis); m4.compose(c.c, q, new V3(c.L.cr * 1.06, c.L.cl * 0.5 * 1.02, c.L.cr * 0.4)); casp.setMatrixAt(i, m4); });
+  grp.add(casp);
+  /* stele: xylem vessels (lignin red, water-filled lumen), phloem, ground tissue */
+  const steleList = [], vessels = [], phloem = [];
+  const axial = (th, rad) => { const pts = []; for (let s = -L6; s <= L6 + 1e-6; s += 0.01){ const F = fAt(s); pts.push(F.p.clone().addScaledVector(radial(F, th), rad)); } return pts; };
+  const b0 = s => 0;
+  vessels.push({pts:axial(0, 0), r:0.0014});
+  for (let a = 0; a < 4; a++){ const th = Math.PI / 4 + a * Math.PI / 2; vessels.push({pts:axial(th, 0.0027), r:0.0009}, {pts:axial(th, 0.0041), r:0.00055}, {pts:axial(th, 0.0050), r:0.0003}); phloem.push({pts:axial(a * Math.PI / 2, 0.0036), r:0.0005}, {pts:axial(a * Math.PI / 2 + 0.25, 0.0034), r:0.00035}); }
+  const tubeOf = (arr, RAD) => mergeTubes(arr.map(v => ({pts:v.pts, r:v.r, b:v.pts.map(() => 0)})), RAD);
+  const vGeo = tubeOf(vessels, 18), pGeo = tubeOf(phloem, 12), sGeo = tubeOf([{pts:axial(0, 0), r:0.0054}], 40);
+  const vFront = new THREE.Mesh(vGeo, new THREE.MeshStandardMaterial({color:0xb8382c, roughness:0.45, emissive:0x2a0603, clippingPlanes:[cutPlane]}));
+  const vBack = new THREE.Mesh(vGeo, new THREE.MeshStandardMaterial({color:0xcfe8f4, roughness:0.2, side:THREE.BackSide, emissive:0x0e2a3a, clippingPlanes:[cutPlane]}));
+  const ph = new THREE.Mesh(pGeo, new THREE.MeshStandardMaterial({color:0xd8c7e6, roughness:0.5, side:THREE.DoubleSide, clippingPlanes:[cutPlane]}));
+  const stele = new THREE.Mesh(sGeo, new THREE.MeshStandardMaterial({color:0xdfe8d6, roughness:0.7, side:THREE.BackSide, clippingPlanes:[cutPlane]}));
+  [vFront, vBack, ph, stele].forEach(m => { m.frustumCulled = false; grp.add(m); });
+  /* intercellular hyphae, then arbuscules branching inside inner-cortex cells */
+  const hyList = [], vesList = [];
+  hyTh.forEach((th, k) => {
+    const pts = [], b = []; for (let s = -L6; s <= L6; s += 0.003){ const F = fAt(s), w = Math.sin(s * 90 + k) * 0.05; pts.push(F.p.clone().addScaledVector(radial(F, th + w * 0.4), 0.0113 + Math.sin(s * 140 + k * 2) * 0.0003)); b.push(45.4 + (s + L6) / 0.12); }
+    hyList.push({pts, r:0.00032, b});
+    if (rr() < 0.8){ const s = (rr() - 0.5) * 0.3, F = fAt(s); vesList.push({p:F.p.clone().addScaledVector(radial(F, th + 0.06), 0.0115), T:F.T, t:46 + (s + L6) / 0.12 + 1.5}); }
+  });
+  const arbList = [], shells = [], exch = [];
+  arbCells.forEach((c, ai) => {
+    const hTh = hyTh.reduce((b, h) => Math.abs(Math.atan2(Math.sin(c.th - h), Math.cos(c.th - h))) < Math.abs(Math.atan2(Math.sin(c.th - b), Math.cos(c.th - b))) ? h : b, hyTh[0]);
+    const hp = c.F.p.clone().addScaledVector(radial(c.F, hTh), 0.0113), ctr = c.c.clone().addScaledVector(S, -c.c.clone().sub(P).dot(S) - c.L.cr * 0.18);
+    const tStart = 46.2 + (c.s + L6) / 0.12 * 0.35 + rr() * 0.4;
+    const trunk = []; const tb = []; for (let k = 0; k <= 6; k++){ const u = k / 6; trunk.push(hp.clone().lerp(ctr, u)); tb.push(tStart + u * 0.45); }
+    arbList.push({pts:trunk, r:0.00022, taper:0.2, b:tb});
+    const inside = p_ => { const rel = p_.clone().sub(c.c), ax = rel.dot(c.F.T) / (c.L.cl * 0.36), rad = rel.clone().addScaledVector(c.F.T, -rel.dot(c.F.T)).length() / (c.L.cr * 0.82); return ax * ax + rad * rad < 1; };
+    const br = (p0, d0, len, depth, t0) => {
+      if (depth > 6) return;
+      const p1 = p0.clone().addScaledVector(d0, len); if (!inside(p1)) p1.lerp(c.c, 0.35);
+      const mid = p0.clone().lerp(p1, 0.5).add(new V3(rr() - 0.5, rr() - 0.5, rr() - 0.5).multiplyScalar(len * 0.15));
+      arbList.push({pts:[p0, mid, p1], r:0.00017 * Math.pow(0.78, depth), taper:0.15, b:[t0, t0 + 0.22, t0 + 0.45]});
+      if (depth >= 5) exch.push({p:p1.clone(), c:c.c});
+      for (const sg of [-1, 1]){
+        const nd = d0.clone().add(new V3(rr() - 0.5, rr() - 0.5, rr() - 0.5).multiplyScalar(0.9)).addScaledVector(c.F.T, sg * 0.6).normalize();
+        br(p1, nd, len * 0.74, depth + 1, t0 + 0.45);
+      }
+    };
+    const d0 = ctr.clone().sub(hp).normalize();
+    br(ctr, d0.clone().addScaledVector(c.F.T, 0.5).normalize(), c.L.cl * 0.11, 1, tStart + 0.45);
+    br(ctr, d0.clone().addScaledVector(c.F.T, -0.5).normalize(), c.L.cl * 0.11, 1, tStart + 0.45);
+    shells.push({c:ctr.clone(), T:c.F.T, L:c.L, t:tStart + 2.4});
+  });
+  const fungMat = growMat({color:0x1530b8, emissive:0x1f40ff, emissiveIntensity:0.9}, growU);
+  const hy = new THREE.Mesh(mergeTubes(hyList, 7), fungMat), arb = new THREE.Mesh(mergeTubes(arbList, 5), fungMat);
+  hy.frustumCulled = arb.frustumCulled = false; grp.add(hy, arb);
+  const shellMat = new THREE.MeshPhysicalMaterial({color:0xd8c4ff, roughness:0.15, transparent:true, opacity:0, depthWrite:false, clippingPlanes:[cutPlane], side:THREE.DoubleSide, clearcoat:1});
+  const shell = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 24, 16), shellMat, Math.max(1, shells.length)); shell.frustumCulled = false;
+  shells.forEach((sh, i) => { q.setFromUnitVectors(up, sh.T); m4.compose(sh.c, q, new V3(sh.L.cr * 0.84, sh.L.cl * 0.38, sh.L.cr * 0.84)); shell.setMatrixAt(i, m4); });
+  grp.add(shell);
+  const vesMat = new THREE.MeshPhysicalMaterial({color:0x5c74d8, roughness:0.3, clearcoat:0.6, emissive:0x101e60, clippingPlanes:[cutPlane]});
+  const ves = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 20, 14), vesMat, Math.max(1, vesList.length)); ves.frustumCulled = false; grp.add(ves);
+  /* nutrient exchange at the periarbuscular interface: phosphate out of the arbuscule (violet), carbon in (gold) */
+  const NE = Math.round(exch.length * 1.2), eg = new THREE.BufferGeometry(), ep = new Float32Array(NE * 3), ed = new Float32Array(NE * 3), ec = new Float32Array(NE * 3), eph = new Float32Array(NE);
+  for (let i = 0; i < NE; i++){
+    const e = exch[i % exch.length], dirv = e.p.clone().sub(e.c).normalize().add(new V3(rr() - 0.5, rr() - 0.5, rr() - 0.5).multiplyScalar(0.6)).normalize(), gold = rr() < 0.4;
+    ep.set([e.p.x, e.p.y, e.p.z], i * 3); ed.set([dirv.x * (gold ? -1 : 1), dirv.y * (gold ? -1 : 1), dirv.z * (gold ? -1 : 1)], i * 3); ec.set(gold ? [1.0, 0.62, 0.05] : [0.55, 0.18, 0.95], i * 3); eph[i] = rr();
+  }
+  eg.setAttribute('position', new THREE.BufferAttribute(ep, 3)); eg.setAttribute('aDir', new THREE.BufferAttribute(ed, 3)); eg.setAttribute('aCol', new THREE.BufferAttribute(ec, 3)); eg.setAttribute('aPh', new THREE.BufferAttribute(eph, 1));
+  const eU = {uOp:{value:0}, uT:{value:0}, uScale:waterU.uScale, uSize:{value:0.00032}};
+  const exPts = new THREE.Points(eg, new THREE.ShaderMaterial({uniforms:eU, transparent:true, depthWrite:false,
+    vertexShader:`#include <common>
+    #include <logdepthbuf_pars_vertex>
+    attribute vec3 aCol; attribute vec3 aDir; attribute float aPh; uniform float uScale, uSize, uT; varying vec3 vC; varying float vA;
+    void main(){ float f = fract(uT * 0.35 + aPh); vec3 p = position + aDir * (f - 0.5) * 0.0011; vC = aCol; vA = sin(f * 3.14159);
+      vec4 mv = modelViewMatrix * vec4(p, 1.0); gl_Position = projectionMatrix * mv; gl_PointSize = clamp(uSize * uScale / -mv.z, 2.0, 28.0);
+      #include <logdepthbuf_vertex>
+    }`,
+    fragmentShader:`#include <common>
+    #include <logdepthbuf_pars_fragment>
+    uniform float uOp; varying vec3 vC; varying float vA;
+    void main(){
+      #include <logdepthbuf_fragment>
+      float d = length(gl_PointCoord - 0.5); if (d > 0.5) discard;
+      float a = smoothstep(0.5, 0.25, d); vec3 col = mix(vC, vec3(1.0), smoothstep(0.2, 0.0, d) * 0.5);
+      gl_FragColor = vec4(col, a * uOp * vA);
+      #include <encodings_fragment>
+    }`}));
+  exPts.frustumCulled = false; grp.add(exPts);
+  const best = arbCells.slice().sort((a, b) => Math.abs(a.s) - Math.abs(b.s))[0] || cells[0];
+  const pickC = k => cells.filter(c => c.L.k === k).sort((a, b) => (Math.abs(a.s - 0.03) + Math.abs(a.c.clone().sub(P).dot(S))) - (Math.abs(b.s - 0.03) + Math.abs(b.c.clone().sub(P).dot(S))))[0];
+  const anchors = {
+    arb:best.c.clone(), hypha:hyList.length ? hyList[0].pts[Math.floor(hyList[0].pts.length * 0.62)] : P,
+    ves:vesList.length ? vesList[0].p : P, cortex:(pickC('cx') || best).c, en:(pickC('en') || best).c, xyl:fAt(-0.05).p, ep:(pickC('ep') || best).c
+  };
+  function update(t){
+    const on = t >= 44; grp.visible = on; if (!on) return;
+    growU.value = t; eU.uT.value = t; eU.uOp.value = ss(51.5, 52.5, t);
+    shellMat.opacity = 0.22 * ss(49.5, 51, t);
+    vesList.forEach((v, i) => { const g = ss(v.t, v.t + 0.8, t); q.setFromUnitVectors(up, v.T); m4.compose(v.p, q, new V3(0.0009 * g + 1e-7, 0.0016 * g + 1e-7, 0.0009 * g + 1e-7)); ves.setMatrixAt(i, m4); });
+    ves.instanceMatrix.needsUpdate = true;
+  }
+  return {update, anchors, count:cells.length, arbs:arbCells.length};
+})();
+
+/* ---------------- shot 7: the membrane at molecular scale (separate scene, 1 unit = 1 nm) ---------------- */
+const mol = (() => {
+  const sc = new THREE.Scene(); sc.background = BG; sc.fog = new THREE.FogExp2(BG.getHex(), 0.01);
+  const cam = new THREE.PerspectiveCamera(35, 16 / 9, 0.05, 3000);
+  sc.add(new THREE.HemisphereLight(0xdfe8ff, 0x2a2030, 0.65));
+  const k1 = new THREE.DirectionalLight(0xfff2e0, 1.6); k1.position.set(8, 20, -14); sc.add(k1);
+  const k2 = new THREE.DirectionalLight(0x8ab8ff, 0.9); k2.position.set(-14, -6, 10); sc.add(k2);
+  const clipM = new THREE.Plane(new V3(0, 0, 1), 1e6), uT = {value:0}, rr = rng(91);
+  const wob = (m, amp) => { m.clippingPlanes = [clipM]; m.onBeforeCompile = sh => { sh.uniforms.uT = uT;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uT;').replace('#include <project_vertex>', `vec4 mvPosition = vec4(transformed, 1.0);
+      #ifdef USE_INSTANCING
+      mvPosition = instanceMatrix * mvPosition;
+      #endif
+      { float fi = float(gl_InstanceID); mvPosition.xyz += vec3(sin(uT * 1.7 + fi * 1.31), sin(uT * 2.3 + fi * 0.73) * 0.5, cos(uT * 1.3 + fi * 2.17)) * ${amp.toFixed(3)}; }
+      mvPosition = modelViewMatrix * mvPosition;
+      gl_Position = projectionMatrix * mvPosition;`); }; return m; };
+  const up = new V3(0, 1, 0), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), col = new THREE.Color();
+  const sph = new THREE.SphereGeometry(1, 18, 14), cyl = new THREE.CylinderGeometry(1, 1, 1, 18);
+  /* proteins: helices as cylinders, globular domains as bead clusters */
+  const hel = [], beads = [];
+  const helix = (a, b, r, c, grp) => hel.push({a, b, r, c, grp});
+  const blob = (ctr, R_, n, c, grp, rmin, rmax) => { for (let i = 0; i < n; i++){ const d = new V3(rr() - 0.5, rr() - 0.5, rr() - 0.5).normalize().multiplyScalar(Math.cbrt(rr()) * R_); beads.push({p:ctr.clone().add(d), r:rmin + rr() * (rmax - rmin), c, grp}); } };
+  const AQ = {c:new V3(0, 0, 1.6), mono:[[-1.6, 0], [1.6, 0], [-1.6, 3.2], [1.6, 3.2]]};
+  AQ.mono.forEach(([mx, mz], k) => {
+    const cc = [0x3fb7c9, 0x38a3c2, 0x45bccf, 0x2f96b4][k];
+    for (let j = 0; j < 6; j++){ const a = (j * 60 + 30) * Math.PI / 180, tg = (j % 2 ? 0.35 : -0.35), cx = mx + Math.cos(a) * 1.08, cz = mz + Math.sin(a) * 1.08;
+      helix(new V3(cx - Math.sin(a) * tg, 2.3, cz + Math.cos(a) * tg), new V3(cx + Math.sin(a) * tg, -2.3, cz - Math.cos(a) * tg), 0.46, cc, 'aq'); }
+    helix(new V3(mx - 0.9, 2.2, mz), new V3(mx - 0.32, 0.18, mz), 0.36, 0x7fe0ec, 'aq');
+    helix(new V3(mx + 0.9, -2.2, mz), new V3(mx + 0.32, -0.18, mz), 0.36, 0x7fe0ec, 'aq');
+  });
+  const ATP_C = new V3(-11.5, 0, 1.0);
+  for (let j = 0; j < 4; j++){ const a = (j * 90 + 45) * Math.PI / 180; helix(new V3(-11.5 + Math.cos(a) * 1.0, 2.4, 1.0 + Math.sin(a) * 1.0), new V3(-11.5 + Math.cos(a) * 1.15, -2.6, 1.0 + Math.sin(a) * 0.85), 0.46, 0xe0765c, 'at'); }
+  for (let j = 0; j < 6; j++){ const a = j * 60 * Math.PI / 180; helix(new V3(-11.5 + Math.cos(a) * 2.15, 2.3, 1.0 + Math.sin(a) * 2.15), new V3(-11.5 + Math.cos(a) * 2.0 + 0.3, -2.5, 1.0 + Math.sin(a) * 2.0), 0.46, 0xc95a43, 'at'); }
+  for (let j = 0; j < 3; j++) helix(new V3(-11.9 + j * 0.8, -2.5, 1.0), new V3(-11.6 + j * 0.5, -3.4, 1.1), 0.42, 0xd06a52, 'at');
+  blob(new V3(-11.4, -4.6, 1.1), 1.5, 30, 0xd06a52, 'at', 0.55, 0.85);
+  blob(new V3(-14.0, -6.9, 1.6), 1.45, 28, 0xe8a24a, 'atN', 0.55, 0.85);
+  blob(new V3(-8.7, -6.0, 1.8), 1.3, 24, 0xb8506a, 'at', 0.55, 0.8);
+  const NRT = new V3(11, 0, 0.9);
+  for (const [bx, g] of [[9.75, 'nN'], [12.25, 'nC']]) for (let j = 0; j < 6; j++){ const a = (j * 60 + 15) * Math.PI / 180;
+    helix(new V3(bx + Math.cos(a) * 1.0, 2.3, 0.9 + Math.sin(a) * 1.0), new V3(bx + Math.cos(a) * 1.05 + (g === 'nN' ? -0.25 : 0.25), -2.3, 0.9 + Math.sin(a) * 1.0), 0.46, g === 'nN' ? 0x5cbf86 : 0x3f9f6c, g); }
+  const helM = new THREE.InstancedMesh(cyl, new THREE.MeshStandardMaterial({roughness:0.38, metalness:0.05, side:THREE.DoubleSide, clippingPlanes:[clipM]}), hel.length);
+  const beadM = new THREE.InstancedMesh(sph, new THREE.MeshStandardMaterial({roughness:0.45, clippingPlanes:[clipM]}), beads.length);
+  helM.frustumCulled = beadM.frustumCulled = false;
+  const placeHelix = (i, h, a, b) => { const d = b.clone().sub(a), L = d.length(); q.setFromUnitVectors(up, d.multiplyScalar(1 / L)); m4.compose(a.clone().add(b).multiplyScalar(0.5), q, new V3(h.r, L, h.r)); helM.setMatrixAt(i, m4); };
+  hel.forEach((h, i) => { placeHelix(i, h, h.a, h.b); helM.setColorAt(i, col.setHex(h.c)); });
+  beads.forEach((b, i) => { m4.compose(b.p, q.identity(), new V3(b.r, b.r, b.r)); beadM.setMatrixAt(i, m4); beadM.setColorAt(i, col.setHex(b.c).multiplyScalar(0.92 + rr() * 0.16)); });
+  sc.add(helM, beadM);
+  const glows = new THREE.InstancedMesh(sph, new THREE.MeshStandardMaterial({color:0xffd34d, emissive:0xffb000, emissiveIntensity:1.2, clippingPlanes:[clipM]}), 8); glows.frustumCulled = false;
+  AQ.mono.forEach(([mx, mz], k) => { m4.compose(new V3(mx - 0.27, 0, mz), q.identity(), new V3(0.14, 0.14, 0.14)); glows.setMatrixAt(k * 2, m4); m4.compose(new V3(mx + 0.27, 0, mz), q.identity(), new V3(0.14, 0.14, 0.14)); glows.setMatrixAt(k * 2 + 1, m4); });
+  sc.add(glows);
+  /* lipid bilayer with phytosterols */
+  const foot = [[0, 1.6, 4.0], [-11.5, 1.0, 3.3], [11, 0.9, 3.0]];
+  const heads = [], tails = [];
+  for (const sg of [1, -1]) for (let x = -21; x <= 21; x += 0.82) for (let z = -13; z <= 19; z += 0.71){
+    const xx = x + ((Math.round(z / 0.71)) % 2) * 0.41 + (rr() - 0.5) * 0.2, zz = z + (rr() - 0.5) * 0.2;
+    if (foot.some(([fx, fz, fr]) => Math.hypot(xx - fx, zz - fz) < fr)) continue;
+    const sterol = rr() < 0.18;
+    if (sterol){ heads.push({p:new V3(xx, sg * 1.75, zz), r:0.24, c:0xf0dc8a}); tails.push({a:new V3(xx, sg * 1.55, zz), b:new V3(xx + (rr() - 0.5) * 0.2, sg * 0.25, zz), r:0.3, c:0xe8d07a}); continue; }
+    const pe = rr() < 0.35;
+    heads.push({p:new V3(xx, sg * 2.0, zz), r:0.42, c:pe ? 0xd38fb6 : 0xa48ee2});
+    for (const o of [-0.2, 0.2]){ const kink = rr() < 0.5 ? (rr() - 0.5) * 0.5 : 0; tails.push({a:new V3(xx + o, sg * 1.62, zz), b:new V3(xx + o + kink, sg * 0.12, zz + (rr() - 0.5) * 0.3), r:0.15, c:0xf2e6be}); }
+  }
+  const headM = new THREE.InstancedMesh(sph, wob(new THREE.MeshStandardMaterial({roughness:0.4}), 0.07), heads.length);
+  const tailM = new THREE.InstancedMesh(cyl, wob(new THREE.MeshStandardMaterial({roughness:0.6}), 0.07), tails.length);
+  headM.frustumCulled = tailM.frustumCulled = false;
+  heads.forEach((h, i) => { m4.compose(h.p, q.identity(), new V3(h.r, h.r, h.r)); headM.setMatrixAt(i, m4); headM.setColorAt(i, col.setHex(h.c).multiplyScalar(0.9 + rr() * 0.2)); });
+  tails.forEach((h, i) => { const d = h.b.clone().sub(h.a), L = d.length(); q.setFromUnitVectors(up, d.multiplyScalar(1 / L)); m4.compose(h.a.clone().add(h.b).multiplyScalar(0.5), q, new V3(h.r, L, h.r)); tailM.setMatrixAt(i, m4); tailM.setColorAt(i, col.setHex(h.c)); });
+  sc.add(headM, tailM);
+  /* bulk water, shown at about 5% of real density */
+  const NWB = 1800, wO = new THREE.InstancedMesh(sph, wob(new THREE.MeshStandardMaterial({color:0xe0473c, roughness:0.3}), 0.25), NWB), wH = new THREE.InstancedMesh(sph, wob(new THREE.MeshStandardMaterial({color:0xf4f4f4, roughness:0.3}), 0.25), NWB * 2);
+  wO.frustumCulled = wH.frustumCulled = false;
+  for (let i = 0; i < NWB; i++){
+    const y = (rr() < 0.5 ? 1 : -1) * (2.8 + rr() * 8), p_ = new V3(-22 + rr() * 44, y, -13 + rr() * 30);
+    m4.compose(p_, q.identity(), new V3(0.12, 0.12, 0.12)); wO.setMatrixAt(i, m4);
+    const bis = new V3(rr() - 0.5, rr() - 0.5, rr() - 0.5).normalize(), ax = new V3(rr() - 0.5, rr() - 0.5, rr() - 0.5).cross(bis).normalize();
+    for (const sgn of [-1, 1]){ const hd = bis.clone().applyAxisAngle(ax, sgn * 0.912); m4.compose(p_.clone().addScaledVector(hd, 0.1), q.identity(), new V3(0.07, 0.07, 0.07)); wH.setMatrixAt(i * 2 + (sgn > 0 ? 1 : 0), m4); }
+  }
+  sc.add(wO, wH);
+  /* dynamic atoms: single-file water in the pores, ATP, nitrate; protons glow */
+  const NA = 260, atoms = new THREE.InstancedMesh(sph, new THREE.MeshStandardMaterial({roughness:0.3, clippingPlanes:[clipM]}), NA); atoms.frustumCulled = false;
+  const prot_ = new THREE.InstancedMesh(sph, new THREE.MeshStandardMaterial({color:0xff8a2a, emissive:0xff6a00, emissiveIntensity:1.4, clippingPlanes:[clipM]}), 8); prot_.frustumCulled = false;
+  for (let i = 0; i < NA; i++) atoms.setColorAt(i, col.setHex(0xffffff));
+  sc.add(atoms, prot_);
+  let ai = 0, pi = 0; const zero = new V3(1e-6, 1e-6, 1e-6);
+  const atom = (p_, r, hex) => { if (ai >= NA) return; m4.compose(p_, q.identity(), new V3(r, r, r)); atoms.setMatrixAt(ai, m4); atoms.setColorAt(ai, col.setHex(hex)); ai++; };
+  const proton = (p_, s_) => { if (pi >= 8) return; m4.compose(p_, q.identity(), new V3(0.24 * s_ + 1e-6, 0.24 * s_ + 1e-6, 0.24 * s_ + 1e-6)); prot_.setMatrixAt(pi, m4); pi++; };
+  const water = (o, phi, s_) => { const b = new V3(Math.sin(phi), Math.cos(phi), 0); atom(o, 0.12 * s_, 0xe0473c); for (const sg of [-1, 1]){ const h = b.clone().applyAxisAngle(new V3(0, 0, 1), sg * 0.912).multiplyScalar(0.1); atom(o.clone().add(h), 0.07 * s_, 0xf4f4f4); } };
+  const ATPshape = []; { for (let k = 0; k < 9; k++){ const a = k / 9 * TAU; ATPshape.push([Math.cos(a) * 0.35 - 1.0, Math.sin(a) * 0.3, 0, 0x6f86b8, 0.14, 'a']); }
+    for (let k = 0; k < 5; k++){ const a = k / 5 * TAU; ATPshape.push([Math.cos(a) * 0.25 - 0.2, Math.sin(a) * 0.25, 0.1, 0x9aa0a6, 0.13, 'a']); }
+    [0.45, 0.95, 1.45].forEach((x, k) => { ATPshape.push([x, 0, 0, 0xf08a24, 0.17, k === 2 ? 'g' : 'a']); for (const [dy, dz] of [[0.25, 0], [-0.25, 0], [0, 0.25]]) ATPshape.push([x, dy, dz, 0xe0473c, 0.12, k === 2 ? 'g' : 'a']); }); }
+  const pivN = new V3(-12.6, -5.3, 1.4), Mtmp = new THREE.Matrix4(), Rz = new THREE.Matrix4(), Tp = new THREE.Matrix4(), Tn = new THREE.Matrix4();
+  const rotAbout = (p_, piv, ang) => p_.clone().sub(piv).applyAxisAngle(new V3(0, 0, 1), ang).add(piv);
+  function update(t){
+    uT.value = t;
+    const zc = lerp(-40, -0.38, ease(ss(60.8, 62.4, t))); clipM.set(new V3(0, 0, 1), -zc);
+    ai = 0; pi = 0;
+    /* single-file water, H atoms pointing away from the NPA centre */
+    AQ.mono.forEach(([mx, mz], k) => {
+      for (let j = 0; j < 16; j++){
+        const y = 2.72 - ((t * 0.5 + j * 0.34 + k * 0.11) % 5.44), phi = Math.PI * ss(0.55, -0.55, y);
+        water(new V3(mx + Math.sin(t * 3 + j) * 0.04, y, mz), phi, Math.min(1, (2.72 - Math.abs(y)) * 4));
+      }
+    });
+    /* H+-ATPase: ATP docks at the N domain, N closes on P, one H+ leaves to the apoplast, ADP + Pi leave */
+    let nAng = 0;
+    if (t > 63){
+      const u = ((t - 63) / 4) % 1; nAng = 0.42 * (ss(0.25, 0.4, u) - ss(0.6, 0.75, u));
+      const S0 = new V3(-16, -11, 1.8), D = new V3(-13.2, -5.9, 1.7), A1 = new V3(-17, -11.5, 2.2), G1 = new V3(-9.5, -11.5, 2.2);
+      const base = u < 0.3 ? S0.clone().lerp(D, ease(u / 0.3)) : D.clone(), fade = 1 - ss(0.8, 0.95, u);
+      ATPshape.forEach(([x, y, z, hex, r, part]) => {
+        let p_ = base.clone().add(new V3(x * 0.8, y * 0.8, z));
+        if (u > 0.55) p_ = (part === 'g' ? D.clone().lerp(G1, ease((u - 0.55) / 0.35)) : D.clone().lerp(A1, ease((u - 0.55) / 0.35))).add(new V3(x * 0.8, y * 0.8, z));
+        atom(rotAbout(p_, pivN, u > 0.3 && u < 0.55 ? nAng : 0), r * fade, hex);
+      });
+      const pu = clamp((u - 0.45) / 0.45); if (pu > 0 && pu < 1){ const p0 = new V3(-11.5, -1.9, 1.0), p1 = new V3(-11.5, 2.9, 1.0), p2 = new V3(-10.2, 6.8, 1.2); proton(pu < 0.5 ? p0.lerp(p1, pu / 0.5) : p1.lerp(p2, (pu - 0.5) / 0.5), Math.min(1, (1 - pu) * 5)); }
+    }
+    beads.forEach((b, i) => { if (b.grp !== 'atN') return; m4.compose(rotAbout(b.p, pivN, nAng), q.identity(), new V3(b.r, b.r, b.r)); beadM.setMatrixAt(i, m4); });
+    beadM.instanceMatrix.needsUpdate = true;
+    /* symporter: alternating access rocking, 2 H+ and NO3- move together */
+    const su = t > 64 ? ((t - 64) / 3.5) % 1 : 0, th = 0.14 * Math.cos(su * TAU);
+    hel.forEach((h, i) => { if (h.grp !== 'nN' && h.grp !== 'nC') return; const sgn = h.grp === 'nN' ? 1 : -1; placeHelix(i, h, rotAbout(h.a, NRT, sgn * th), rotAbout(h.b, NRT, sgn * th)); });
+    helM.instanceMatrix.needsUpdate = true;
+    if (t > 64){
+      const path = [new V3(11.6, 7, 1.4), new V3(11, 2.6, 0.9), new V3(11, 0.4, 0.9), new V3(11, -2.6, 0.9), new V3(12, -7.5, 1.4)];
+      const f = su < 0.25 ? su / 0.25 * 0.25 : su < 0.45 ? 0.25 : su < 0.7 ? 0.25 + (su - 0.45) / 0.25 * 0.5 : 0.75 + (su - 0.7) / 0.3 * 0.25;
+      const seg = Math.min(3, Math.floor(f * 4)), lu = f * 4 - seg, cp = path[seg].clone().lerp(path[seg + 1], lu), sc_ = Math.min(1, su * 8, (1 - su) * 8);
+      atom(cp, 0.14 * sc_, 0x4a63d8); for (let k = 0; k < 3; k++){ const a = k / 3 * TAU; atom(cp.clone().add(new V3(Math.cos(a) * 0.15, Math.sin(a) * 0.15, 0)), 0.12 * sc_, 0xe0473c); }
+      proton(cp.clone().add(new V3(-0.55, 0.3, 0)), sc_); proton(cp.clone().add(new V3(0.55, 0.35, 0)), sc_);
+    }
+    for (let i = ai; i < NA; i++){ m4.compose(new V3(0, -999, 0), q.identity(), zero); atoms.setMatrixAt(i, m4); }
+    for (let i = pi; i < 8; i++){ m4.compose(new V3(0, -999, 0), q.identity(), zero); prot_.setMatrixAt(i, m4); }
+    atoms.instanceMatrix.needsUpdate = true; if (atoms.instanceColor) atoms.instanceColor.needsUpdate = true; prot_.instanceMatrix.needsUpdate = true;
+  }
+  function camAt(t){
+    let target, dir, dist;
+    const d0 = new V3(0.3, 0.85, -0.45).normalize(), dS = new V3(0.12, 0.14, -1).normalize(), dW = new V3(0.04, 0.2, -1).normalize();
+    if (t < 60.6){ target = AQ.c.clone(); dir = d0; dist = t < 58.5 ? Math.exp(lerp(Math.log(34), Math.log(9), ease(ss(57.5, 58.5, t)))) : Math.exp(lerp(Math.log(9), Math.log(58), ease(ss(58.5, 60.8, t)))); }
+    else if (t < 68){ const k = ease(ss(60.6, 63.6, t)); target = AQ.c.clone().lerp(new V3(0, 0, 0), k); dir = slerpDir(d0, dS, k); dist = lerp(58, 15, k) + Math.sin(t * 0.4) * 0.3; }
+    else { const k = ease(ss(68, 71, t)); target = new V3(0, 0, 0).lerp(new V3(-0.5, -1.2, 0.6), k); dir = slerpDir(dS, dW, k); dist = lerp(15, 44, k) - ss(71, 74, t) * 3; }
+    cam.position.copy(target).addScaledVector(dir, dist); cam.up.set(0, 1, 0); cam.lookAt(target); cam.near = Math.max(0.05, dist * 0.01); cam.far = Math.max(300, dist * 30); cam.updateProjectionMatrix();
+    sc.fog.density = 0.25 / dist;
+    return {target, dir, dist};
+  }
+  const anchors = {lip:new V3(-6, 2.0, 0.2), ster:null, aq:new V3(1.6, 2.6, 0), file:new V3(-1.6, 1.4, 0), npa:new V3(1.6, 0, 0), atp:new V3(-11.5, -4.6, 1.0), nrt:new V3(11, 2.4, 0.9), apo:new V3(-4, 7.5, 0), cyt:new V3(4, -8, 0)};
+  { const sh = heads.find(h => h.r < 0.3 && h.p.y > 0 && Math.abs(h.p.z) < 0.4 && Math.abs(h.p.x - 5) < 4); anchors.ster = sh ? sh.p : new V3(5, 1.8, 0.2); }
+  return {sc, cam, update, camAt, anchors};
+})();
+
+/* ---------------- tissue section (power diagram) ---------------- */
+const SEC = 4096, SC = SEC / 2, RR = SEC * 0.268, FEXT = SC / RR;
+function buildSection(){
+  const cv = document.createElement('canvas'); cv.width = cv.height = SEC; const g = cv.getContext('2d');
+  const r = rng(7), seeds = [];
+  const add = (rad, th, size, type, ex) => seeds.push(Object.assign({x:Math.cos(th) * rad * RR, y:-Math.sin(th) * rad * RR, rr:size * RR, type}, ex || {}));
+  const ring = (rm, half, type, jitter) => { const n = Math.round(TAU * rm / (half * 2)), ph = r() * TAU; for (let k = 0; k < n; k++) add(rm + (r() - 0.5) * jitter, ph + (k + (r() - 0.5) * 0.3) / n * TAU, half * (0.85 + r() * 0.3), type); };
+  ring(0.966, 0.034, 'ep', 0.004);
+  [0.887, 0.801, 0.715, 0.629, 0.546].forEach((rm, i) => ring(rm, 0.043 - i * 0.002, 'cx', 0.014));
+  ring(0.4825, 0.019, 'en', 0.002);
+  ring(0.4495, 0.0145, 'pe', 0.002);
+  add(0, 0, 0.075, 'mx');
+  const anchors = {};
+  for (let a = 0; a < 4; a++){
+    const th = Math.PI / 4 + a * Math.PI / 2;
+    [[0.14, 0.045, 'mx'], [0.22, 0.033, 'mx'], [0.30, 0.024, 'mx'], [0.37, 0.016, 'px'], [0.405, 0.011, 'px']].forEach(([rad, sz, ty]) => add(rad, th, sz, ty));
+    const ph = a * Math.PI / 2;
+    add(0.315, ph + 0.065, 0.022, 'sv'); add(0.315, ph - 0.065, 0.022, 'sv'); add(0.255, ph, 0.021, 'sv');
+    add(0.365, ph, 0.011, 'cc'); add(0.285, ph + 0.13, 0.011, 'cc'); add(0.285, ph - 0.13, 0.011, 'cc');
+  }
+  for (let tries = 0; tries < 9000; tries++){
+    const rad = Math.sqrt(r()) * 0.425, th = r() * TAU, x = Math.cos(th) * rad * RR, y = -Math.sin(th) * rad * RR, sz = 0.019 * RR;
+    if (seeds.some(s => (s.type !== 'ep' && s.type !== 'cx' && s.type !== 'en') && Math.hypot(s.x - x, s.y - y) < (s.rr + sz) * 0.98)) continue;
+    seeds.push({x, y, rr:sz * (0.85 + r() * 0.3), type:'st'});
+  }
+  const circle = []; for (let k = 0; k < 160; k++){ const a = k / 160 * TAU; circle.push({x:Math.cos(a) * RR, y:Math.sin(a) * RR, e:-1}); }
+  const clip = (poly, ax, ay, b, lab) => {
+    const out = [], n = poly.length;
+    for (let i = 0; i < n; i++){
+      const p = poly[i], q = poly[(i + 1) % n], dp = ax * p.x + ay * p.y - b, dq = ax * q.x + ay * q.y - b;
+      if (dp <= 0){ out.push(p); if (dq > 0){ const t = dp / (dp - dq); out.push({x:p.x + (q.x - p.x) * t, y:p.y + (q.y - p.y) * t, e:lab}); } }
+      else if (dq <= 0){ const t = dp / (dp - dq); out.push({x:p.x + (q.x - p.x) * t, y:p.y + (q.y - p.y) * t, e:p.e}); }
+    }
+    return out;
+  };
+  seeds.forEach((s, i) => {
+    let poly = circle.slice(); const wi = s.rr * s.rr;
+    for (let j = 0; j < seeds.length && poly.length > 2; j++){
+      if (j === i) continue; const o = seeds[j];
+      if (Math.hypot(o.x - s.x, o.y - s.y) > (s.rr + o.rr) * 2.6 + 0.02 * RR) continue;
+      poly = clip(poly, 2 * (o.x - s.x), 2 * (o.y - s.y), (o.x * o.x + o.y * o.y) - (s.x * s.x + s.y * s.y) - o.rr * o.rr + wi, j);
+    }
+    s.poly = poly;
+  });
+  const inset = (poly, d) => {
+    let a = 0; for (let i = 0; i < poly.length; i++){ const p = poly[i], q = poly[(i + 1) % poly.length]; a += p.x * q.y - q.x * p.y; }
+    const sg = a > 0 ? 1 : -1; let out = poly;
+    for (let i = 0; i < poly.length; i++){
+      const p = poly[i], q = poly[(i + 1) % poly.length], dx = q.x - p.x, dy = q.y - p.y, L = Math.hypot(dx, dy); if (L < 1e-6) continue;
+      const nx = -dy / L * sg, ny = dx / L * sg; out = clip(out, -nx, -ny, -(nx * p.x + ny * p.y) - d, -2); if (out.length < 3) return [];
+    }
+    return out;
+  };
+  const rpath = (poly, rad) => {
+    const n = poly.length; g.beginPath(); if (n < 3) return;
+    const m = (a, b) => ({x:(a.x + b.x) / 2, y:(a.y + b.y) / 2});
+    let s = m(poly[n - 1], poly[0]); g.moveTo(SC + s.x, SC + s.y);
+    for (let i = 0; i < n; i++){ const v = poly[i], nx = m(v, poly[(i + 1) % n]); const L = Math.min(Math.hypot(v.x - nx.x, v.y - nx.y), Math.hypot(v.x - s.x, v.y - s.y)); g.arcTo(SC + v.x, SC + v.y, SC + nx.x, SC + nx.y, Math.min(rad, L * 0.95)); s = nx; }
+    g.closePath();
+  };
+  const cen = poly => { let x = 0, y = 0; for (const p of poly){ x += p.x; y += p.y; } return {x:x / poly.length, y:y / poly.length}; };
+  const COL = {air:'#eef1e4', wall:'#4f9a74', cyto:'#e2ebd8', cyto2:'#d3e0cc', vac:'#f8faf3', ton:'rgba(70,115,90,0.35)', nuc:'#8a4f86', nuc2:'#b07aa6', nucl:'#53264f', amy:'#d3b058', lig:'#c23a2e', lig2:'#8f2219', lumen:'#e4f1f7', sieve:'#efe7f2', comp:'#cbbfd8'};
+  const grad = (poly, a, b) => { const c = cen(poly); let rm = 0; for (const p of poly) rm = Math.max(rm, Math.hypot(p.x - c.x, p.y - c.y)); const gr = g.createRadialGradient(SC + c.x - rm * 0.3, SC + c.y - rm * 0.3, rm * 0.1, SC + c.x, SC + c.y, rm * 1.1); gr.addColorStop(0, a); gr.addColorStop(1, b); return gr; };
+  const nucleus = (x, y, rad) => { const gr = g.createRadialGradient(SC + x - rad * 0.3, SC + y - rad * 0.3, rad * 0.1, SC + x, SC + y, rad); gr.addColorStop(0, COL.nuc2); gr.addColorStop(1, COL.nuc); g.beginPath(); g.ellipse(SC + x, SC + y, rad, rad * 0.86, 0, 0, TAU); g.fillStyle = gr; g.fill(); g.beginPath(); g.arc(SC + x + rad * 0.2, SC + y - rad * 0.1, rad * 0.32, 0, TAU); g.fillStyle = COL.nucl; g.fill(); };
+  /* root hairs (drawn first so the epidermal cell overlaps the base, then re-stroked over) */
+  const hairsList = [];
+  seeds.forEach((s, i) => { if (s.type === 'ep' && r() < 0.17){ const th = Math.atan2(s.y, s.x); hairsList.push({th, len:(0.42 + r() * 0.42) * RR, bend:(r() - 0.5) * 0.9, seed:i}); } });
+  g.save();
+  g.beginPath(); g.arc(SC, SC, RR * 1.002, 0, TAU); g.fillStyle = COL.air; g.fill();
+  const drawHair = (h, pass) => {
+    const pts = []; for (let k = 0; k <= 30; k++){ const u = k / 30, rad = RR * 0.95 + h.len * u, th = h.th + h.bend * u * u * 0.35; pts.push([SC + Math.cos(th) * rad, SC + Math.sin(th) * rad]); }
+    g.beginPath(); pts.forEach((p, k) => k ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.lineCap = 'round'; g.lineJoin = 'round';
+    if (pass === 0){ g.strokeStyle = COL.wall; g.lineWidth = 46; g.stroke(); }
+    else { g.strokeStyle = COL.cyto; g.lineWidth = 32; g.stroke(); const tp = pts[26]; nucleus(tp[0] - SC, tp[1] - SC, 14); g.beginPath(); g.moveTo(pts[3][0], pts[3][1]); for (let k = 4; k < 22; k++) g.lineTo(pts[k][0], pts[k][1]); g.strokeStyle = COL.vac; g.lineWidth = 16; g.stroke(); }
+    if (pass === 1) h.tip = pts[30];
+  };
+  hairsList.forEach(h => drawHair(h, 0));
+  seeds.forEach(s => {
+    const poly = s.poly; if (!poly || poly.length < 3) return;
+    const ty = s.type, c = cen(poly);
+    if (ty === 'mx' || ty === 'px'){
+      const wall = inset(poly, 1.2); rpath(wall, 10); g.fillStyle = COL.lig; g.fill(); g.strokeStyle = COL.lig2; g.lineWidth = 2; g.stroke();
+      const lum = inset(poly, ty === 'px' ? 6 : 10); rpath(lum, 60); g.fillStyle = grad(lum, '#f4fafc', COL.lumen); g.fill();
+      return;
+    }
+    const isCx = ty === 'cx', wallT = ty === 'ep' ? 7 : ty === 'sv' ? 4 : 6;
+    const wall = inset(poly, isCx ? 2 : 1); rpath(wall, isCx ? 26 : ty === 'ep' ? 10 : 6); g.fillStyle = COL.wall; g.fill();
+    const pro = inset(poly, wallT); if (pro.length < 3) return;
+    if (ty === 'sv'){ rpath(pro, 8); g.fillStyle = COL.sieve; g.fill(); const cc = cen(pro); for (let k = 0; k < 14; k++){ const a = k * 2.4, rr2 = Math.sqrt(k / 14) * s.rr * 0.5; g.beginPath(); g.arc(SC + cc.x + Math.cos(a) * rr2, SC + cc.y + Math.sin(a) * rr2, 2.6, 0, TAU); g.fillStyle = 'rgba(120,90,140,0.35)'; g.fill(); } return; }
+    const dense = ty === 'cc' || ty === 'pe' || ty === 'st' || ty === 'en';
+    rpath(pro, isCx ? 20 : 6); g.fillStyle = grad(pro, ty === 'cc' ? COL.comp : COL.cyto, ty === 'cc' ? '#b9aacb' : COL.cyto2); g.fill();
+    const vm = ty === 'cc' ? 0 : dense ? 0.32 : isCx ? 0.16 : 0.2;
+    if (vm){ let mr = 1e9; for (const p of pro) mr = Math.min(mr, Math.hypot(p.x - c.x, p.y - c.y)); const vac = inset(pro, Math.max(3, mr * vm)); if (vac.length > 2){ rpath(vac, isCx ? 18 : 5); g.fillStyle = COL.vac; g.fill(); g.strokeStyle = COL.ton; g.lineWidth = 1.5; g.stroke(); } }
+    const v = pro[Math.floor(r() * pro.length)], nf = isCx ? 0.62 : 0.45;
+    let mr2 = 1e9; for (const p of pro) mr2 = Math.min(mr2, Math.hypot(p.x - c.x, p.y - c.y));
+    nucleus(c.x + (v.x - c.x) * nf, c.y + (v.y - c.y) * nf, Math.max(5, Math.min(mr2 * (ty === 'cc' ? 0.45 : 0.28), 15)));
+    if (isCx){ const na = 3 + Math.floor(r() * 4); for (let k = 0; k < na; k++){ const w = pro[Math.floor(r() * pro.length)], f = 0.7 + r() * 0.15, x = c.x + (w.x - c.x) * f, y = c.y + (w.y - c.y) * f; g.beginPath(); g.ellipse(SC + x, SC + y, 5.5, 4, r() * 3, 0, TAU); g.fillStyle = COL.amy; g.fill(); g.beginPath(); g.arc(SC + x - 1.5, SC + y - 1.5, 1.6, 0, TAU); g.fillStyle = '#f3e3b0'; g.fill(); } }
+    if (ty === 'en'){
+      for (let i = 0; i < poly.length; i++){
+        const p = poly[i], q = poly[(i + 1) % poly.length], o = seeds[p.e]; if (!o || o.type !== 'en') continue;
+        const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, L = Math.hypot(q.x - p.x, q.y - p.y), ux = (q.x - p.x) / L, uy = (q.y - p.y) / L, hl = Math.min(L * 0.18, 13);
+        g.beginPath(); g.moveTo(SC + mx - ux * hl, SC + my - uy * hl); g.lineTo(SC + mx + ux * hl, SC + my + uy * hl); g.strokeStyle = COL.lig; g.lineWidth = 11; g.lineCap = 'round'; g.stroke();
+      }
+    }
+  });
+  hairsList.forEach(h => drawHair(h, 1));
+  g.beginPath(); g.arc(SC, SC, RR, 0, TAU); g.strokeStyle = 'rgba(47,110,82,0.6)'; g.lineWidth = 3; g.stroke();
+  g.restore();
+  const N = v => ({x:v.x / RR, y:-v.y / RR});
+  const pick = (ty, th, rad) => { let best = null, bd = 1e9; seeds.forEach(s => { if (s.type !== ty) return; const tx = Math.cos(th) * rad * RR, tyy = -Math.sin(th) * rad * RR, d = Math.hypot(s.x - tx, s.y - tyy); if (d < bd){ bd = d; best = s; } }); return N(best); };
+  const ht = hairsList.reduce((b, h) => (!b || Math.abs(Math.cos(h.th) + 0.7) < Math.abs(Math.cos(b.th) + 0.7)) ? h : b, null);
+  anchors.list = [
+    {k:'Root hair', s:'one epidermal cell, ≈10 µm wide', p:ht ? {x:(ht.tip[0] - SC) / RR * 0.85, y:-(ht.tip[1] - SC) / RR * 0.85} : {x:-1.3, y:0}},
+    {k:'Epidermis', s:'outer cell layer', p:pick('ep', 2.55, 0.966)},
+    {k:'Cortex', s:'starch-filled parenchyma, air spaces', p:pick('cx', 2.15, 0.72)},
+    {k:'Endodermis', s:'Casparian strip in red', p:pick('en', 0.95, 0.4825)},
+    {k:'Pericycle', s:'origin of lateral roots', p:pick('pe', 0.3, 0.4495)},
+    {k:'Phloem', s:'sieve tubes + companion cells', p:pick('sv', Math.PI, 0.3)},
+    {k:'Protoxylem', s:'matures first, at the poles', p:pick('px', -Math.PI / 4, 0.405)},
+    {k:'Metaxylem', s:'wide vessels carry water up', p:{x:0, y:0}}
+  ];
+  anchors.vessels = seeds.filter(s => s.type === 'mx' || s.type === 'px').map(N);
+  return {canvas:cv, anchors};
+}
+
+/* ---------------- state shared with the render loop ---------------- */
+let section = null, disc = null, discU = null;
+const camState = {target:new V3(), dir:new V3(), dist:1};
+const orbitDir = t => { const a = 0.55 + 0.05 * t; return new V3(Math.sin(a), 0.2, Math.cos(a)).normalize(); };
+const C0 = new V3(-70, 175, -45);
+const D1 = T.clone().multiplyScalar(0.82).addScaledVector(S, 0.5).addScaledVector(UPV, 0.22).normalize();
+const D2 = T.clone().addScaledVector(S, 0.05).addScaledVector(UPV, 0.03).normalize();
+const slerpDir = (a, b, u) => { const q = new THREE.Quaternion().setFromUnitVectors(a, b); const qi = new THREE.Quaternion().slerp(q, u); return a.clone().applyQuaternion(qi); };
+function heroAtS(s){ const fr = hero.tb.frames; let i = fr.findIndex(f => f.s >= s); if (i < 0) i = fr.length - 1; return {p:heroPts[i], T:fr[i].T, i}; }
+const sP = hero.tb.frames[pIdx].s;
+
+function updateCamera(t){
+  let target, dir, dist;
+  if (t < 8){ target = C0.clone(); dir = orbitDir(t); dist = lerp(1420, 1220, ease(t / 8)); }
+  else if (t < 16){ target = C0.clone().lerp(P, ease(ss(8, 12.5, t))); dir = slerpDir(orbitDir(8), S, ease(ss(8, 14, t))); dist = Math.exp(lerp(Math.log(1220), Math.log(0.32), ease(clamp((t - 8) / 8)))); }
+  else if (t < 22){ target = P.clone(); dir = slerpDir(S, D1, ease(ss(17.2, 21.6, t))); dist = lerp(0.32, 0.17, ease(ss(17.2, 22, t))); }
+  else if (t >= 44){ const k = ease(ss(44, 51, t)); target = P.clone().addScaledVector(S, -0.004).addScaledVector(T, lerp(0, 0.03, ss(50, 58, t))); const a = lerp(0.55, 0.12, k) + Math.sin(t * 0.25) * 0.04; dir = S.clone().multiplyScalar(Math.cos(a)).addScaledVector(T, Math.sin(a)).addScaledVector(UPV, lerp(0.35, 0.18, k)).normalize(); const dv = ss(54.8, 57.3, t), dk = dv * dv * (3 - 2 * dv);
+    if (dk > 0){ const arbT = cortex.anchors.arb.clone(); arbT.addScaledVector(S, -0.0008 - arbT.clone().sub(P).dot(S)); target.lerp(arbT, dk); }
+    dist = Math.exp(lerp(Math.log(0.22), Math.log(0.042), k) + Math.log(0.03) * Math.pow(ss(55.9, 58.8, t), 2.2)); }
+  else if (t >= 32){ target = P.clone().addScaledVector(T, -0.1); const a = lerp(-0.42, 0.38, ease(ss(32, 44, t))); dir = S.clone().multiplyScalar(Math.cos(a)).addScaledVector(UPV, Math.sin(a) * 0.6).addScaledVector(T, 0.28).normalize(); dist = lerp(0.75, 0.3, ease(ss(32, 42, t))); }
+  else { target = P.clone(); dir = slerpDir(D1, D2, ease(ss(22, 26, t))); dist = Math.exp(lerp(Math.log(0.17), Math.log(0.078), ease(ss(22, 27, t)))); }
+  camera.position.copy(target).addScaledVector(dir, dist); camera.up.set(0, 1, 0); camera.lookAt(target);
+  camState.target.copy(target); camState.dir.copy(dir); camState.dist = dist;
+  scene.fog.density = 0.33 / dist;
+  key.position.copy(target).addScaledVector(KEYDIR, dist * 4); key.target.position.copy(target);
+  const sc = key.shadow.camera, ext = Math.max(dist * 1.1, 0.08); sc.left = -ext; sc.right = ext; sc.top = ext; sc.bottom = -ext; sc.near = dist * 0.5; sc.far = dist * 9; sc.updateProjectionMatrix();
+  key.shadow.normalBias = dist * 0.004;
+  rim.position.copy(target).addScaledVector(RIMDIR, dist * 4); rim.target.position.copy(target);
+  camera.near = Math.max(0.00002, dist * 0.004); camera.far = Math.max(60, dist * 40); camera.updateProjectionMatrix();
+}
+
+function updateScene(t){
+  for (const r of roots){ const g = clamp((t - r.t0) / r.dur); r.mesh.geometry.setDrawRange(0, Math.floor(g * r.tb.rings) * r.tb.perRing); r.mesh.visible = g > 0; }
+  const ct = 1 - ss(10.5, 12.8, t);
+  treeT.value = t; const treeOn = t < 14.5; crownMeshes.forEach(m => m.visible = treeOn); flowers.visible = treeOn;
+  treeRootMats.forEach(m => { m.emissiveIntensity = ct * 0.55; });
+  matRoot.emissiveIntensity = ct * 1.05; matHero.emissiveIntensity = ct * 1.05 + 0.06; const cv = lerp(1, 0.12, ct); matRoot.color.setRGB(cv, cv, cv); matHero.color.setRGB(cv, cv, cv);
+  coreU.uOp.value = 1 - ss(11.6, 13.8, t); coreU.uScan.value = t < 8 ? -((t * 0.16) % 1) * 180 : 1e4; coreU.uCam.value.copy(camera.position);
+  coreEdges.material.opacity = 0.5 * coreU.uOp.value; core.visible = coreEdges.visible = coreU.uOp.value > 0.002;
+  revealU.value = ss(12.4, 14.4, t);
+  grains.visible = revealU.value > 0; grains.castShadow = t > 14.4;
+  hairMat.opacity = 0.9 * ss(12.4, 14.2, t); hairs.visible = hairMat.opacity > 0.005;
+  bridgeMat.opacity = 0.42 * ss(13.6, 15.2, t); bridges.visible = bridgeMat.opacity > 0.005;
+  waterU.uOp.value = (t < 32 ? ss(13.4, 14.8, t) * (1 - ss(16.2, 17.2, t)) : ss(32.3, 33.6, t) * (1 - ss(43.4, 44, t))) * soilW.op; waterPts.visible = waterU.uOp.value > 0.003;
+  myc.update(t); cortex.update(t); if (t >= 57.5) mol.update(t);
+  const cutK = ease(ss(16.4, 18.8, t)), sQ = lerp(sP + 0.34, sP, cutK);
+  if (t >= 44){ cutPlane.setFromNormalAndCoplanarPoint(S.clone().negate(), P.clone().addScaledVector(S, 0.0004)); cutU.r.value = 0; if (disc) disc.visible = false; }
+  else if (t < 16.4 || t >= 32){ cutPlane.set(T.clone().negate(), 1e6); cutU.r.value = 0; if (disc) disc.visible = false; }
+  else {
+    const h = heroAtS(sQ), n = h.T.clone().negate();
+    cutPlane.setFromNormalAndCoplanarPoint(n, h.p);
+    cutU.c.value.copy(h.p); cutU.p.value.copy(P); cutU.t.value.copy(T); cutU.r.value = 0.22;
+    if (disc){ disc.visible = true; disc.position.copy(h.p); disc.up.copy(UPV); disc.lookAt(h.p.clone().add(h.T)); disc.updateMatrixWorld(); }
+  }
+  if (discU) discU.uSlide.value = t < 32 ? ss(22.6, 25, t) : 0;
+}
+
+/* ---------------- HUD ---------------- */
+const SHOTS = [
+  {t:0, n:'Shot 1 · A flowering cherry', c:'A Yoshino cherry in full bloom, its umbrella crown about 7 m across, with the soil made transparent. Its woody roots stay mostly in the top 60 cm and reach beyond the crown; thousands of fine roots under 1 mm do the absorbing.', tc:'Root growth · 1 s ≈ 5 years'},
+  {t:8, n:'Shot 2 · Optical zoom', c:'A lateral root about 0.5 mm wide among fine to medium sand. Root hairs, 10 µm wide, reach into the pores; water bridges grains and flows in, faster as it converges (speed ∝ 1/r).', tc:'Real time'},
+  {t:16, n:'Shot 3 · The cut', c:'A transverse cut through the maturation zone, where most water and nutrients enter. The plane slices root and soil alike.', tc:'Real time'},
+  {t:22, n:'Shot 4 · Stained section', c:'Brightfield section, safranin and fast green. Water moves inward from the root hairs, across the cortex, through the endodermis to the xylem.', tc:'Schematic · tetrarch dicot root'},
+  {t:32, n:'Shot 5 · Fungal partners', c:'Arbuscular mycorrhizal fungi, partners of about 72% of plant species, grow out from the root. Hyphae 5 µm wide reach past the root hairs. Violet: phosphate to the root. Gold: sugars and lipids paid to the fungus.', tc:'Hyphal growth · 1 s ≈ 1 day'},
+  {t:44, n:'Shot 6 · Inside the cortex', c:'Cut lengthwise: the fungus runs between cortical cells, then enters inner cortex cells and branches into arbuscules with 1 µm twigs. Each is wrapped in a plant-made membrane where phosphate and carbon are traded. The endodermis wears its red Casparian belt.', tc:'Arbuscule growth · 1 s ≈ 12 h'},
+  {t:58.2, n:'Shot 7 · The membrane', c:'Nanometre scale. A lipid bilayer about 4 nm thick, stiffened by phytosterols. Aquaporins pass water in single file, about 3 billion molecules per second per pore; the NPA motif flips each one so protons cannot hop through. The H⁺-ATPase spends ATP to push H⁺ out; the symporter rides that gradient to pull NO₃⁻ in.', tc:'Water: 1 s ≈ 1 ns · pump cycle: 1 s ≈ 10 ms'}
+];
+const shotAt = t => { let k = 0; SHOTS.forEach((s, i) => { if (t >= s.t) k = i; }); return k; };
+const capShot = document.getElementById('capShot'), capText = document.getElementById('capText'), titlecard = document.getElementById('titlecard');
+let curShot = -1;
+function setShot(k){
+  if (k === curShot) return; curShot = k;
+  capShot.classList.add('fade'); capText.classList.add('fade');
+  setTimeout(() => { capShot.textContent = SHOTS[k].n; capText.textContent = SHOTS[k].c; capShot.classList.remove('fade'); capText.classList.remove('fade'); }, 260);
+  shotBtns.forEach((b, i) => b.classList.toggle('on', i === k));
+}
+const water = []; { const rr = rng(23); for (let i = 0; i < 110; i++) water.push({th:rr() * TAU, ph:rr(), v:Math.floor(rr() * 17), sp:0.7 + rr() * 0.5}); }
+let HW = 1, HH = 1, HD = 1;
+const tmpV = new V3();
+let actCam = camera, unitCm = 1;
+function proj(v){ tmpV.copy(v).project(actCam); return {x:(tmpV.x * 0.5 + 0.5) * HW, y:(-tmpV.y * 0.5 + 0.5) * HH, z:tmpV.z}; }
+function secToScreen(x, y){ return proj(disc.localToWorld(new V3(x * RW, y * RW, 0))); }
+function niceBar(cmPerPx){
+  const opts = [[500, '5 m'], [200, '2 m'], [100, '1 m'], [50, '50 cm'], [20, '20 cm'], [10, '10 cm'], [5, '5 cm'], [2, '2 cm'], [1, '1 cm'], [0.5, '5 mm'], [0.2, '2 mm'], [0.1, '1 mm'], [0.05, '500 µm'], [0.02, '200 µm'], [0.01, '100 µm'], [0.005, '50 µm'], [0.002, '20 µm'], [0.001, '10 µm'], [5e-4, '5 µm'], [2e-4, '2 µm'], [1e-4, '1 µm'], [5e-5, '500 nm'], [2e-5, '200 nm'], [1e-5, '100 nm'], [5e-6, '50 nm'], [2e-6, '20 nm'], [1e-6, '10 nm'], [5e-7, '5 nm'], [2e-7, '2 nm'], [1e-7, '1 nm']];
+  for (const [v, l] of opts){ const px = v / cmPerPx; if (px <= 170) return [px, l]; } return [1e-7 / cmPerPx, '1 nm'];
+}
+function drawHUD(t){
+  const c = hx; c.setTransform(HD, 0, 0, HD, 0, 0); c.clearRect(0, 0, HW, HH);
+  const k = shotAt(t), sl = discU ? discU.uSlide.value : 0;
+  const blk = Math.max(1 - ss(0, 0.32, Math.abs(t - 32)), 1 - ss(0, 0.32, Math.abs(t - 44))); if (blk > 0){ c.fillStyle = 'rgba(0,0,0,' + blk.toFixed(3) + ')'; c.fillRect(0, 0, HW, HH); }
+  
+  if (sl > 0 && disc){
+    const ctr = secToScreen(0, 0), ed = secToScreen(FEXT * 0.82, 0), rad = Math.hypot(ed.x - ctr.x, ed.y - ctr.y);
+    const vg = c.createRadialGradient(ctr.x, ctr.y, rad * 0.92, ctr.x, ctr.y, rad * 1.25); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,' + (0.92 * sl).toFixed(3) + ')');
+    c.fillStyle = vg; c.fillRect(0, 0, HW, HH);
+  }
+  if (t > 25.5 && t < 31.6 && disc && section){
+    const wa = ss(25.5, 26.5, t);
+    for (const w of water){
+      const u = ((t - 25.5) * 0.11 * w.sp + w.ph) % 1, ves = section.anchors.vessels[w.v % section.anchors.vessels.length];
+      let x, y;
+      if (u < 0.55){ const rad = lerp(1.25, 0.49, u / 0.55); x = Math.cos(w.th) * rad; y = Math.sin(w.th) * rad; }
+      else if (u < 0.68){ x = Math.cos(w.th) * 0.49; y = Math.sin(w.th) * 0.49; }
+      else { const f = ease((u - 0.68) / 0.32); x = lerp(Math.cos(w.th) * 0.49, ves.x, f); y = lerp(Math.sin(w.th) * 0.49, ves.y, f); }
+      const s = secToScreen(x, y), a = wa * Math.min(1, u * 8, (1 - u) * 8), sz = Math.max(2, HH / 260);
+      const gr = c.createRadialGradient(s.x, s.y, 0, s.x, s.y, sz * 3.2); gr.addColorStop(0, 'rgba(70,190,255,' + (0.55 * a).toFixed(3) + ')'); gr.addColorStop(1, 'rgba(70,190,255,0)');
+      c.fillStyle = gr; c.beginPath(); c.arc(s.x, s.y, sz * 3.2, 0, TAU); c.fill();
+      c.fillStyle = 'rgba(20,140,210,' + a.toFixed(3) + ')'; c.beginPath(); c.arc(s.x, s.y, sz, 0, TAU); c.fill();
+    }
+  }
+  if (t > 23.8 && t < 31.6 && disc && section){
+    const ctr = secToScreen(0, 0), ed = secToScreen(1, 0), rr = Math.hypot(ed.x - ctr.x, ed.y - ctr.y);
+    const items = section.anchors.list.map((L, i) => { const s = secToScreen(L.p.x, L.p.y); return {L, s, i, side:s.x < ctr.x ? -1 : 1}; });
+    const f1 = Math.max(12, Math.min(17, HH / 42)), f2 = f1 * 0.78, gap = f1 * 3.0;
+    for (const side of [-1, 1]){
+      const col = items.filter(o => o.side === side).sort((a, b) => a.s.y - b.s.y);
+      let y = -1e9; const ys = col.map(o => { y = Math.max(o.s.y, y + gap); return y; });
+      const over = ys.length ? ys[ys.length - 1] - (HH - 90) : 0; if (over > 0) for (let i = 0; i < ys.length; i++) ys[i] -= over;
+      const under = ys.length ? 70 - ys[0] : 0; if (under > 0) for (let i = 0; i < ys.length; i++) ys[i] += under;
+      const F1 = '600 ' + f1 + 'px "IBM Plex Sans", system-ui, sans-serif', F2 = '400 ' + f2 + 'px "IBM Plex Mono", ui-monospace, monospace';
+      const bw = col.map(o => { c.font = F1; const w1 = c.measureText(o.L.k).width; c.font = F2; return Math.max(w1, c.measureText(o.L.s).width) + f1 * 1.4; });
+      const maxW = Math.max(0, ...bw);
+      const bxL = side < 0 ? Math.max(12, Math.min(ctr.x - rr * 1.12 - maxW, ctr.x - rr - maxW)) : Math.min(HW - 12 - maxW, ctr.x + rr * 1.12);
+      col.forEach((o, j) => {
+        const a = ss(23.8 + o.i * 0.45, 24.5 + o.i * 0.45, t) * (1 - ss(31, 31.5, t)); if (a <= 0) return;
+        const ly = ys[j], w = bw[j], h = f1 + f2 + f1 * 0.9, x0 = side < 0 ? bxL + maxW - w : bxL, y0 = ly - h / 2;
+        const ex = side < 0 ? x0 + w : x0;
+        c.strokeStyle = 'rgba(15,20,24,' + (0.8 * a) + ')'; c.lineWidth = 1.3; c.beginPath(); c.moveTo(o.s.x, o.s.y); c.lineTo(ex, ly); c.stroke();
+        c.fillStyle = 'rgba(15,20,24,' + a + ')'; c.beginPath(); c.arc(o.s.x, o.s.y, 3.6, 0, TAU); c.fill();
+        c.fillStyle = 'rgba(255,255,255,' + (0.95 * a) + ')'; c.beginPath(); c.arc(o.s.x, o.s.y, 1.6, 0, TAU); c.fill();
+        c.beginPath(); c.roundRect ? c.roundRect(x0, y0, w, h, 6) : c.rect(x0, y0, w, h); c.fillStyle = 'rgba(250,248,241,' + (0.94 * a) + ')'; c.fill();
+        c.strokeStyle = 'rgba(15,20,24,' + (0.25 * a) + ')'; c.lineWidth = 1; c.stroke();
+        const red = o.L.k === 'Endodermis' || o.L.k.includes('xylem');
+        if (red){ c.fillStyle = 'rgba(194,58,46,' + a + ')'; c.fillRect(x0, y0 + 4, 3, h - 8); }
+        c.textAlign = 'left'; c.textBaseline = 'alphabetic';
+        c.font = F1; c.fillStyle = red ? 'rgba(160,38,28,' + a + ')' : 'rgba(18,24,28,' + a + ')'; c.fillText(o.L.k, x0 + f1 * 0.7, y0 + f1 * 1.15);
+        c.font = F2; c.fillStyle = 'rgba(70,80,82,' + a + ')'; c.fillText(o.L.s, x0 + f1 * 0.7, y0 + f1 * 1.15 + f2 * 1.3);
+      });
+    }
+  }
+  const cmPerPx = 2 * camState.dist * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / HH * unitCm;
+  const [bp, bl] = niceBar(cmPerPx), bx = 22, by = 24, dark = sl > 0.5;
+  c.fillStyle = dark ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.92)'; c.fillRect(bx, by, bp, 3);
+  c.fillRect(bx, by - 5, 1.5, 13); c.fillRect(bx + bp - 1.5, by - 5, 1.5, 13);
+  c.font = '500 12px "IBM Plex Mono", ui-monospace, monospace'; c.textAlign = 'left'; c.textBaseline = 'top'; c.fillStyle = 'rgba(255,255,255,0.92)';
+  c.fillText(bl, bx, by + 10);
+  c.textAlign = 'right'; c.fillStyle = 'rgba(255,255,255,0.75)';
+  c.fillText(SHOTS[k].tc, HW - 22, 18);
+  c.fillText('t = ' + t.toFixed(1) + ' s', HW - 22, 36);
+  if (k === 0){ c.textAlign = 'left'; c.fillStyle = 'rgba(255,177,90,0.9)'; c.fillStyle = 'rgba(232,214,180,0.95)'; c.fillText('■ roots', bx, by + 30); c.fillStyle = 'rgba(127,211,255,0.85)'; c.fillText('■ soil, rendered transparent', bx, by + 46); }
+  if ((t > 12.5 && t < 22) || (t > 32.5 && t < 43.6)){
+    const a = (t > 32.5 ? ss(32.5, 33.5, t) : ss(12.5, 13.5, t) * (1 - ss(21, 22, t)));
+    const rows = [['Soil water potential', fmtPsi(soilW.psi)], ['Largest water-filled pore', 'r ≈ ' + fmtLen(soilW.rPore) + '   (r = 2γ / |ψ|)'], ['Hydraulic conductivity', 'K / K(fc) = ' + fmtSci(soilW.Krel)]];
+    const y0 = by + 34; c.globalAlpha = a; c.textAlign = 'left'; c.textBaseline = 'top';
+    c.fillStyle = 'rgba(6,10,14,0.55)'; c.beginPath(); c.roundRect ? c.roundRect(bx - 8, y0 - 8, 300, rows.length * 34 + 10, 8) : c.rect(bx - 8, y0 - 8, 300, rows.length * 34 + 10); c.fill();
+    rows.forEach((r, i) => { c.font = '400 11px "IBM Plex Mono", ui-monospace, monospace'; c.fillStyle = 'rgba(160,190,205,0.9)'; c.fillText(r[0], bx, y0 + i * 34); c.font = '500 13px "IBM Plex Mono", ui-monospace, monospace'; c.fillStyle = 'rgba(205,236,250,1)'; c.fillText(r[1], bx, y0 + i * 34 + 14); });
+    c.globalAlpha = 1;
+  }
+  const lab3 = (L, tEnd) => L.forEach(([n, sub, w, t0]) => {
+      const a = ss(t0, t0 + 0.6, t) * (1 - ss(tEnd - 0.5, tEnd, t)), s = proj(w); if (a <= 0 || s.z > 1) return;
+      if (s.x < 20 || s.x > HW - 20 || s.y < 60 || s.y > HH - 150) return;
+      const lx = s.x + (s.x < HW * 0.6 ? 40 : -40), ly = clamp(s.y - 46, 70, HH - 170), f1 = Math.max(12, Math.min(16, HH / 44)), f2 = f1 * 0.78;
+      c.font = '600 ' + f1 + 'px "IBM Plex Sans", system-ui, sans-serif'; const w1 = c.measureText(n).width; c.font = '400 ' + f2 + 'px "IBM Plex Mono", ui-monospace, monospace'; const w2 = c.measureText(sub).width;
+      const bw = Math.max(w1, w2) + f1 * 1.4, bh = f1 + f2 + f1 * 0.9, x0 = s.x < HW * 0.6 ? lx : lx - bw;
+      c.globalAlpha = a; c.strokeStyle = 'rgba(255,255,255,0.85)'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(s.x, s.y); c.lineTo(s.x < HW * 0.6 ? x0 : x0 + bw, ly); c.stroke();
+      c.fillStyle = '#fff'; c.beginPath(); c.arc(s.x, s.y, 3, 0, TAU); c.fill();
+      c.fillStyle = 'rgba(8,12,18,0.82)'; c.beginPath(); c.roundRect ? c.roundRect(x0, ly - bh / 2, bw, bh, 6) : c.rect(x0, ly - bh / 2, bw, bh); c.fill();
+      c.textAlign = 'left'; c.textBaseline = 'alphabetic'; c.font = '600 ' + f1 + 'px "IBM Plex Sans", system-ui, sans-serif'; c.fillStyle = '#eef3f6'; c.fillText(n, x0 + f1 * 0.7, ly - bh / 2 + f1 * 1.15);
+      c.font = '400 ' + f2 + 'px "IBM Plex Mono", ui-monospace, monospace'; c.fillStyle = '#a9bac4'; c.fillText(sub, x0 + f1 * 0.7, ly - bh / 2 + f1 * 1.15 + f2 * 1.3);
+      c.globalAlpha = 1;
+    });
+  if (t > 35 && t < 44) lab3([['Spore', 'stores lipids · ≈150 µm', myc.anchors.spore, 36.5], ['Hypha', 'fungal thread · ≈5 µm wide', myc.anchors.hypha, 37.2], ['Entry point', 'hyphopodium on the root', myc.anchors.entry, 37.9]], 43.8);
+  if (t > 58.4) lab3([['Lipid bilayer', '≈4 nm · heads + fatty-acid tails', mol.anchors.lip, 59.2], ['Phytosterol', 'stiffens plant membranes', mol.anchors.ster, 59.8], ['Aquaporin (PIP)', 'tetramer · four water pores', mol.anchors.aq, 63.4], ['Single-file water', '≈3×10⁹ molecules s⁻¹ per pore', mol.anchors.file, 64.2], ['NPA motif', 'flips each water · blocks H⁺', mol.anchors.npa, 65.0]], 68.6);
+  if (t > 69) lab3([['H⁺-ATPase', '1 ATP → 1 H⁺ out', mol.anchors.atp, 69.4], ['Symporter (NRT)', '2 H⁺ + NO₃⁻ in', mol.anchors.nrt, 70.0], ['Apoplast', 'pH ≈ 5.5 · positive side', mol.anchors.apo, 71.0], ['Cytosol', 'pH ≈ 7.3 · −150 mV', mol.anchors.cyt, 71.4]], 99);
+  if (t > 47 && t < 58) lab3([['Arbuscule', 'branches ≈1 µm · lives a few days', cortex.anchors.arb, 51.2], ['Intercellular hypha', 'runs in the air spaces', cortex.anchors.hypha, 47.6], ['Vesicle', 'fungal lipid store', cortex.anchors.ves, 49.6], ['Cortex cell', 'nucleus + starch grains', cortex.anchors.cortex, 48.2], ['Endodermis', 'Casparian strip in red', cortex.anchors.en, 52.6], ['Xylem', 'lignified vessels', cortex.anchors.xyl, 53.2]], 57.3);
+  titlecard.style.opacity = (1 - ss(2.2, 3.4, t)).toFixed(3);
+}
+
+function fmtPsi(p){ const a = Math.abs(p); return '−' + (a < 0.01 ? a.toFixed(4) : a < 0.1 ? a.toFixed(3) : a.toFixed(2)) + ' MPa'; }
+function fmtLen(um){ return um >= 1000 ? (um / 1000).toFixed(1) + ' mm' : um >= 10 ? um.toFixed(0) + ' µm' : um >= 1 ? um.toFixed(1) + ' µm' : (um * 1000).toFixed(0) + ' nm'; }
+function fmtSci(x){ if (x >= 0.1) return x.toFixed(2); const e = Math.floor(Math.log10(x)), m = x / Math.pow(10, e); return m.toFixed(1) + '×10' + String(e).replace('-', '⁻').replace(/\d/g, d => '⁰¹²³⁴⁵⁶⁷⁸⁹'[d]); }
+
+/* ---------------- transport ---------------- */
+let T0 = 0, tNow = 0, playing = true, last = null;
+const RM = window.matchMedia('(prefers-reduced-motion: reduce)');
+const playBtn = document.getElementById('play'), playTxt = document.getElementById('playTxt'), playIcon = document.getElementById('playIcon'), scrub = document.getElementById('scrub'), timeEl = document.getElementById('time');
+const shotsEl = document.getElementById('shots');
+const shotBtns = SHOTS.map((s, i) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'shotbtn'; b.innerHTML = '<b>' + s.n.split(' · ')[1] + '</b><span>Shot ' + (i + 1) + ' · ' + s.t + ' s</span>'; b.addEventListener('click', () => { tNow = s.t + (i ? 0.01 : 0); dirtyUI(); }); shotsEl.appendChild(b); return b; });
+const fmt = s => Math.floor(s / 60) + ':' + (s % 60).toFixed(1).padStart(4, '0');
+function setPlayUI(){
+  const ended = tNow >= TOTAL - 0.001;
+  playTxt.textContent = playing ? 'Pause' : ended ? 'Replay' : 'Play';
+  playIcon.innerHTML = playing ? '<rect x="3" y="2" width="3.5" height="12" rx="1"/><rect x="9.5" y="2" width="3.5" height="12" rx="1"/>' : ended ? '<path d="M8 2a6 6 0 1 0 6 6h-2a4 4 0 1 1-4-4v3l4-4-4-4z"/>' : '<path d="M4 2l10 6-10 6z"/>';
+}
+function dirtyUI(){ scrub.value = tNow.toFixed(2); timeEl.textContent = fmt(tNow) + ' / 1:14'; setPlayUI(); }
+function togglePlay(){ if (!playing && tNow >= TOTAL - 0.001) tNow = 0; playing = !playing; dirtyUI(); }
+playBtn.addEventListener('click', togglePlay);
+document.getElementById('restart').addEventListener('click', () => { tNow = 0; playing = true; dirtyUI(); });
+scrub.addEventListener('input', () => { tNow = parseFloat(scrub.value); dirtyUI(); });
+const psiIn = document.getElementById('psi'), psiOut = document.getElementById('psiOut');
+function psiName(p){ const a = Math.abs(p); return a < 0.006 ? 'saturated, after heavy rain' : a < 0.02 ? 'wet' : a < 0.06 ? 'field capacity' : a < 0.6 ? 'drying' : a < 1.2 ? 'dry' : 'permanent wilting point'; }
+function applyPsi(){ const p = -Math.pow(10, parseFloat(psiIn.value)); setPsi(p); psiOut.textContent = fmtPsi(p) + ' · ' + psiName(p); if (!playing) render(); }
+psiIn.addEventListener('input', applyPsi);
+document.getElementById('psiReset').addEventListener('click', () => { psiIn.value = Math.log10(0.033).toFixed(3); applyPsi(); });
+const stopsBtn = document.getElementById('stops'); let stops = false;
+stopsBtn.addEventListener('click', () => { stops = !stops; stopsBtn.setAttribute('aria-pressed', String(stops)); stopsBtn.textContent = 'Stop at each shot: ' + (stops ? 'on' : 'off'); });
+function jumpShot(dir){ const k = shotAt(tNow + (dir > 0 ? 0.05 : -0.6)); const nk = clamp(k + (dir > 0 ? 1 : 0), 0, SHOTS.length - 1); tNow = SHOTS[nk].t + (nk ? 0.02 : 0); playing = true; dirtyUI(); }
+const fsBtn = document.getElementById('fs');
+function toggleFS(){ try { if (document.fullscreenElement) document.exitFullscreen(); else { const p = stage.requestFullscreen && stage.requestFullscreen(); if (p && p.catch) p.catch(() => {}); } } catch (e) {} }
+fsBtn.addEventListener('click', toggleFS);
+document.addEventListener('keydown', e => {
+  const tag = (e.target && e.target.tagName) || '';
+  if (tag === 'INPUT' && e.target.type !== 'range') return;
+  if (e.code === 'Space' && tag !== 'BUTTON'){ e.preventDefault(); togglePlay(); }
+  else if (e.key === 'ArrowRight' && tag !== 'INPUT'){ tNow = Math.min(TOTAL, tNow + 1); dirtyUI(); }
+  else if (e.key === 'ArrowLeft' && tag !== 'INPUT'){ tNow = Math.max(0, tNow - 1); dirtyUI(); }
+  else if (e.key === 'f' || e.key === 'F'){ toggleFS(); }
+  else if (e.key === 'PageDown' || e.key === 'n' || e.key === 'N'){ e.preventDefault(); jumpShot(1); }
+  else if (e.key === 'PageUp' || e.key === 'b' || e.key === 'B'){ e.preventDefault(); jumpShot(-1); }
+});
+
+function resize(){
+  const r = stage.getBoundingClientRect(); if (!r.width) return;
+  const pr = Math.min((window.devicePixelRatio || 1) * 1.25, 2.5);
+  renderer.setPixelRatio(pr); renderer.setSize(r.width, r.height, false);
+  camera.aspect = r.width / r.height; camera.updateProjectionMatrix(); mol.cam.aspect = r.width / r.height; mol.cam.updateProjectionMatrix();
+  { const ds = renderer.getDrawingBufferSize(new THREE.Vector2()); rt.setSize(ds.x, ds.y); rt2.setSize(ds.x, ds.y); rt.depthTexture.image.width = ds.x; rt.depthTexture.image.height = ds.y; postU.uRes.value.copy(ds); }
+  HD = Math.min(window.devicePixelRatio || 1, 2); HW = r.width; HH = r.height; hud.width = Math.round(HW * HD); hud.height = Math.round(HH * HD);
+}
+try { new ResizeObserver(resize).observe(stage); } catch (e) { window.addEventListener('resize', resize); }
+
+function frame(now){
+  if (last === null) last = now; const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (playing){ const prev = tNow; tNow += dt; if (stops) for (const s of SHOTS){ if (s.t > 0 && prev < s.t - 0.05 && tNow >= s.t - 0.05){ tNow = s.t - 0.05; playing = false; break; } } if (tNow >= TOTAL){ tNow = TOTAL; playing = false; } }
+  render(); if (playing || Math.abs(parseFloat(scrub.value) - tNow) > 0.02) dirtyUI();
+  requestAnimationFrame(frame);
+}
+const fx = {on:false};
+const rt = new THREE.WebGLRenderTarget(4, 4, {type:THREE.HalfFloatType, samples:4});
+rt.depthTexture = new THREE.DepthTexture(4, 4); rt.depthTexture.type = THREE.UnsignedIntType;
+const rt2 = new THREE.WebGLRenderTarget(4, 4, {type:THREE.HalfFloatType, samples:4});
+const postU = {tCol:{value:rt.texture}, tDep:{value:rt.depthTexture}, uRes:{value:new THREE.Vector2(4, 4)}, uFar:{value:300}, uFocus:{value:1}, uAper:{value:20}, uMaxB:{value:20}, uTime:{value:0}, uSlide:{value:0}, tCol2:{value:rt2.texture}, uMix:{value:0}, uZoom:{value:0}, uFx:{value:0}};
+const postMat = new THREE.ShaderMaterial({uniforms:postU, depthTest:false, depthWrite:false, toneMapped:false,
+  vertexShader:`varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
+  fragmentShader:`uniform sampler2D tCol; uniform sampler2D tDep; uniform vec2 uRes; uniform float uFar, uFocus, uAper, uMaxB, uTime, uSlide; uniform sampler2D tCol2; uniform float uMix, uZoom, uFx; varying vec2 vUv;
+  float vz(vec2 uv){ float d = texture2D(tDep, uv).x; return exp2(d * log2(uFar + 1.0)) - 1.0; }
+  float coc(float z){ return min(uAper * abs(z - uFocus) / max(z, 1e-6), uMaxB); }
+  float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+  vec3 zoomB(sampler2D tx, float j){
+    vec3 a = vec3(0.0);
+    for (int i = 0; i < 20; i++){ float f = (float(i) + j) / 20.0; a += texture2D(tx, 0.5 + (vUv - 0.5) * (1.0 - uZoom * f)).rgb; }
+    return a / 20.0;
+  }
+  void main(){
+    if (uMix > 0.0 || uZoom > 0.0005){
+      float j = hash(gl_FragCoord.xy);
+      vec3 cz = mix(zoomB(tCol, j), zoomB(tCol2, j), uMix);
+      cz *= 1.0 + 0.1 * sin(3.14159265 * uMix);
+      vec2 qz = vUv - 0.5; cz *= 1.0 - dot(qz, qz) * 0.7 * uFx;
+      cz = clamp(cz, 0.0, 1.0);
+      vec3 sz = mix(cz * 12.92, 1.055 * pow(cz, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, cz));
+      sz += (hash(gl_FragCoord.xy + fract(uTime * 7.0) * 113.0) - 0.5) * 0.035 * uFx;
+      gl_FragColor = vec4(clamp(sz, 0.0, 1.0), 1.0); return;
+    }
+    float z0 = vz(vUv), c0 = coc(z0);
+    vec3 acc = texture2D(tCol, vUv).rgb; float ws = 1.0;
+    float rot = hash(gl_FragCoord.xy) * 6.2831853;
+    if (c0 > 0.5 || uMaxB > 0.5){
+      for (int i = 0; i < 48; i++){
+        float fi = float(i) + 0.5, rr = sqrt(fi / 48.0) * uMaxB, a = fi * 2.3999632 + rot;
+        vec2 suv = clamp(vUv + vec2(cos(a), sin(a)) * rr / uRes, vec2(0.0), vec2(1.0));
+        float zs = vz(suv), cs = coc(zs), cm = zs > z0 ? min(cs, c0) : cs;
+        float w = clamp(cm - rr + 1.0, 0.0, 1.0);
+        acc += texture2D(tCol, suv).rgb * w; ws += w;
+      }
+    }
+    vec3 col = acc / ws;
+    vec2 q = vUv - 0.5; col *= 1.0 - dot(q, q) * 0.7 * (1.0 - 0.7 * uSlide) * uFx;
+    col = clamp(col, 0.0, 1.0);
+    vec3 srgb = mix(col * 12.92, 1.055 * pow(col, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, col));
+    srgb += (hash(gl_FragCoord.xy + fract(uTime * 7.0) * 113.0) - 0.5) * 0.035 * uFx;
+    gl_FragColor = vec4(clamp(srgb, 0.0, 1.0), 1.0);
+  }`});
+const postScene = new THREE.Scene(), postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+{ const q = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), postMat); q.frustumCulled = false; postScene.add(q); }
+const fxBtn = document.getElementById('fxb');
+fxBtn.addEventListener('click', () => { fx.on = !fx.on; fxBtn.setAttribute('aria-pressed', String(fx.on)); fxBtn.textContent = fx.on ? 'Lens FX on' : 'Lens FX off'; if (!playing) render(); });
+let flowTau = 0, flowLast = 0;
+function render(){
+  updateCamera(tNow); updateScene(tNow);
+  let rScene = scene, rCam = camera; actCam = camera; unitCm = 1;
+  if (tNow >= 58.2){ const cs = mol.camAt(tNow); camState.dist = cs.dist; rScene = mol.sc; rCam = mol.cam; actCam = mol.cam; unitCm = 1e-7; }
+  flowTau += (tNow - flowLast) * soilW.flow; flowLast = tNow; waterU.uTime.value = flowTau;
+  const pr = renderer.getPixelRatio();
+  waterU.uScale.value = renderer.domElement.height / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
+  /* shot 6 -> 7: the cortex dive and the membrane render together, cross-dissolved through a radial zoom */
+  const xMix = ease(ss(57.7, 58.7, tNow)), xZoom = 0.3 * Math.pow(Math.max(0, 1 - Math.abs(tNow - 58.2) / 0.85), 1.6);
+  const xOn = tNow >= 57.5 && tNow < 58.9;
+  postU.uMix.value = xOn ? xMix : 0; postU.uZoom.value = xOn ? xZoom : 0; postU.uFx.value = fx.on ? 1 : 0;
+  if (fx.on || xOn){
+    if (xOn){
+      renderer.setRenderTarget(rt); renderer.render(scene, camera);
+      mol.camAt(tNow); renderer.setRenderTarget(rt2); renderer.render(mol.sc, mol.cam);
+    } else { renderer.setRenderTarget(rt); renderer.render(rScene, rCam); }
+    renderer.setRenderTarget(null);
+    const close = discU ? 1 - discU.uSlide.value : 1;
+    postU.uFocus.value = camState.dist; postU.uFar.value = rCam.far; postU.uTime.value = tNow;
+    const rack = Math.max(1 - ss(0, 0.9, Math.abs(tNow - 32)), 1 - ss(0, 0.9, Math.abs(tNow - 44)), (1 - ss(0, 0.7, Math.abs(tNow - 16.4))) * 0.5);
+    const lens = fx.on ? 1 : 0;
+    postU.uAper.value = lens * (15 + 260 * rack) * pr * Math.max(close, rack); postU.uMaxB.value = lens * Math.min(56, (16 + 30 * rack) * pr) * Math.max(close, rack); postU.uSlide.value = discU ? discU.uSlide.value : 0;
+    renderer.render(postScene, postCam);
+  } else renderer.render(rScene, rCam);
+  drawHUD(tNow); setShot(shotAt(tNow));
+}
+window.__seek = x => { tNow = x; playing = false; render(); dirtyUI(); };
+
+/* build the section after first paint, then start */
+setTimeout(() => {
+  section = buildSection();
+  const tex = new THREE.CanvasTexture(section.canvas); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = renderer.capabilities.getMaxAnisotropy(); tex.generateMipmaps = true; tex.minFilter = THREE.LinearMipmapLinearFilter;
+  discU = {map:{value:tex}, uSlide:{value:0}};
+  const dm = new THREE.ShaderMaterial({
+    uniforms:discU, transparent:true, side:THREE.DoubleSide, toneMapped:false,
+    vertexShader:`#include <common>
+    #include <logdepthbuf_pars_vertex>
+    varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    #include <logdepthbuf_vertex>
+    }`,
+    fragmentShader:`#include <common>
+    #include <logdepthbuf_pars_fragment>
+    uniform sampler2D map; uniform float uSlide; varying vec2 vUv;
+    void main(){
+      #include <logdepthbuf_fragment>
+      vec4 tx = texture2D(map, vUv); float r = length(vUv - 0.5) * 2.0;
+      vec3 slide = vec3(0.89, 0.86, 0.79);
+      float edge = smoothstep(1.0, 0.8, r);
+      vec3 col = mix(slide, tx.rgb, tx.a); float a = max(tx.a, uSlide * edge);
+      if (a < 0.01) discard;
+      gl_FragColor = vec4(col, a);
+      #include <encodings_fragment>
+    }`
+  });
+  disc = new THREE.Mesh(new THREE.PlaneGeometry(2 * FEXT * RW, 2 * FEXT * RW), dm); disc.visible = false; disc.renderOrder = 10; scene.add(disc);
+  resize();
+  if (RM.matches){ tNow = 27; playing = false; }
+  loadingEl.hidden = true; dirtyUI(); requestAnimationFrame(frame);
+}, 30);
+})();
+</script>
